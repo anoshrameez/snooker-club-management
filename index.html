@@ -1,58 +1,100 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <meta name="robots" content="noindex, nofollow" />
-  <title>CueMaster — Snooker Club Management & POS Terminal</title>
-  
-  <!-- Fonts -->
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700;900&family=JetBrains+Mono:wght@400;700;900&display=swap" rel="stylesheet">
-  
-  <!-- Tailwind CSS -->
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="robots" content="noindex, nofollow">
+  <title>CueMaster Snooker Club — Reception Counter Access & POS</title>
+
+  <!-- Tailwind CSS CDN -->
   <script src="https://cdn.tailwindcss.com"></script>
   <script>
     tailwind.config = {
+      darkMode: 'class',
       theme: {
         extend: {
           colors: {
             brand: {
               yellow: '#FACC15',
-              gold: '#EAB308',
-              dark: '#111827',
-              black: '#000000',
-              felt: '#15803D',
+              green: '#22C55E',
+              red: '#EF4444',
+              blue: '#38BDF8',
+              bg: '#F8F9FA',
+              dark: '#111827'
             }
+          },
+          fontFamily: {
+            sans: ['Space Grotesk', 'Inter', 'sans-serif'],
+            mono: ['JetBrains Mono', 'monospace']
           },
           boxShadow: {
             'brutal': '4px 4px 0px 0px #000000',
-            'brutal-lg': '6px 6px 0px 0px #000000',
             'brutal-sm': '2px 2px 0px 0px #000000',
+            'brutal-lg': '6px 6px 0px 0px #000000',
+            'brutal-xl': '8px 8px 0px 0px #000000',
           }
         }
       }
     }
   </script>
 
-  <!-- React 18 & Babel Standalone (Fastest Zero-Config Serverless Deployment) -->
+  <!-- Google Fonts: Space Grotesk & JetBrains Mono -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700;800;900&family=JetBrains+Mono:wght@500;700;800&display=swap" rel="stylesheet">
+  
+  <!-- FontAwesome 6 Icons -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+
+  <!-- React 18 & Babel Standalone -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.5/babel.min.js"></script>
 
   <style>
     body {
-      font-family: 'Space Grotesk', system-ui, -apple-system, sans-serif;
+      font-family: 'Space Grotesk', sans-serif;
+      background-color: #F8F9FA;
+      color: #111827;
     }
     .font-mono {
       font-family: 'JetBrains Mono', monospace;
     }
-    .border-brutal {
-      border: 3px solid #000000;
+    .btn-brutal {
+      border: 2px solid #000;
+      box-shadow: 4px 4px 0px 0px #000;
+      transition: all 0.1s ease;
+      font-weight: 700;
     }
-    .border-brutal-thick {
-      border: 4px solid #000000;
+    .btn-brutal:hover {
+      box-shadow: 2px 2px 0px 0px #000;
+      transform: translate(2px, 2px);
+    }
+    .btn-brutal:active {
+      box-shadow: 0px 0px 0px 0px #000;
+      transform: translate(4px, 4px);
+    }
+    .card-brutal {
+      background: #FFFFFF;
+      border: 2px solid #000;
+      box-shadow: 4px 4px 0px 0px #000;
+    }
+    .badge-brutal {
+      border: 2px solid #000;
+      font-weight: 700;
+      text-transform: uppercase;
+      font-size: 0.75rem;
+      letter-spacing: 0.05em;
+    }
+    .input-brutal {
+      border: 2px solid #000;
+      background: #FFFFFF;
+      font-weight: 500;
+      transition: all 0.15s;
+    }
+    .input-brutal:focus {
+      outline: none;
+      box-shadow: 3px 3px 0px 0px #000;
     }
     @media print {
       body * {
@@ -72,14 +114,14 @@
     }
   </style>
 </head>
-<body class="bg-[#F4F4F0] text-black min-h-screen">
+<body class="min-h-screen antialiased selection:bg-yellow-300 selection:text-black">
   <div id="root"></div>
 
   <script type="text/babel">
     const { useState, useEffect } = React;
 
-    // --- INITIAL SEED DATA ---
-    const INITIAL_TABLES = [
+    // --- REAL INITIAL DATA (NO FAKE / DEMO SESSIONS OR CUSTOMERS) ---
+    const DEFAULT_TABLES = [
       { id: 1, name: "Table 1 (Standard)", type: "standard", rate_century: 10, rate_6ball: 130, rate_10ball: 150, rate_oneball: 120, status: "available", session: null },
       { id: 2, name: "Table 2 (Standard)", type: "standard", rate_century: 10, rate_6ball: 130, rate_10ball: 150, rate_oneball: 120, status: "available", session: null },
       { id: 3, name: "Table 3 (Standard)", type: "standard", rate_century: 10, rate_6ball: 130, rate_10ball: 150, rate_oneball: 120, status: "available", session: null },
@@ -88,14 +130,14 @@
       { id: 6, name: "Table 6 (Tournament VIP)", type: "vip", rate_century: 15, rate_6ball: 160, rate_10ball: 200, rate_oneball: 150, status: "available", session: null },
     ];
 
-    const INITIAL_USERS = [
+    const DEFAULT_USERS = [
       { id: 1, username: "admin", password: "admin123", role: "admin", name: "Manager Admin", is_active: true },
-      { id: 2, username: "staff", password: "staff123", role: "staff", name: "Counter Staff", is_active: true },
+      { id: 2, username: "staff", password: "staff123", role: "staff", name: "Reception Staff", is_active: true },
     ];
 
-    const INITIAL_SETTINGS = {
+    const DEFAULT_SETTINGS = {
       club_name: "CueMaster Snooker Club",
-      tagline: "Point of Sale & Club Management",
+      tagline: "Reception Counter Access",
       address: "Gulberg III, Main Boulevard, Lahore, Pakistan",
       phone: "+92 300 1234567",
       currency: "Rs.",
@@ -106,78 +148,80 @@
       default_oneball: 120,
     };
 
-    const INITIAL_CUSTOMERS = [
-      { id: 1, name: "Hamza Malik", phone: "03001234567", notes: "Regular Century player", total_visits: 14, total_spent: 4900 },
-      { id: 2, name: "Ali Raza", phone: "03219876543", notes: "6-ball tournament player", total_visits: 9, total_spent: 3100 },
-      { id: 3, name: "Usman Tariq", phone: "03335554433", notes: "Table 5 VIP regular", total_visits: 18, total_spent: 8500 },
-    ];
-
-    const INITIAL_SESSIONS = [
-      { id: 101, session_code: "SNK-901101", table_id: 1, table_name: "Table 1 (Standard)", customer_name: "Hamza Malik", customer_phone: "03001234567", game_type: "century", rate_applied: 10, rounds: 1, duration_seconds: 3600, total_price: 600, payment_status: "paid", payment_method: "cash", operator: "Counter Staff", start_time: "2026-09-30 15:30:00" },
-      { id: 102, session_code: "SNK-901102", table_id: 2, table_name: "Table 2 (Standard)", customer_name: "Ali Raza", customer_phone: "03219876543", game_type: "6ball", rate_applied: 130, rounds: 3, duration_seconds: 2400, total_price: 390, payment_status: "paid", payment_method: "cash", operator: "Counter Staff", start_time: "2026-09-30 16:45:00" },
-      { id: 103, session_code: "SNK-901103", table_id: 5, table_name: "Table 5 (VIP)", customer_name: "Usman Tariq", customer_phone: "03335554433", game_type: "10ball", rate_applied: 180, rounds: 2, duration_seconds: 3100, total_price: 360, payment_status: "paid", payment_method: "cash", operator: "Manager Admin", start_time: "2026-09-30 17:20:00" },
-    ];
-
-    // Helper functions for persistent storage
-    function getStore(key, fallback) {
+    // Storage Helpers
+    function getStore(k, fallback) {
       try {
-        const item = localStorage.getItem(key);
+        const item = localStorage.getItem(k);
         return item ? JSON.parse(item) : fallback;
       } catch (e) {
         return fallback;
       }
     }
-    function setStore(key, val) {
+    function setStore(k, v) {
       try {
-        localStorage.setItem(key, JSON.stringify(val));
+        localStorage.setItem(k, JSON.stringify(v));
       } catch (e) {}
     }
 
-    // --- MAIN APP COMPONENT ---
+    // ==========================================
+    // MAIN CONTROLLER COMPONENT
+    // ==========================================
     function App() {
-      const [tables, setTables] = useState(() => getStore('snk_tables', INITIAL_TABLES));
-      const [users, setUsers] = useState(() => getStore('snk_users', INITIAL_USERS));
-      const [settings, setSettings] = useState(() => getStore('snk_settings', INITIAL_SETTINGS));
-      const [customers, setCustomers] = useState(() => getStore('snk_customers', INITIAL_CUSTOMERS));
-      const [sessions, setSessions] = useState(() => getStore('snk_sessions', INITIAL_SESSIONS));
-      const [currentUser, setCurrentUser] = useState(() => getStore('snk_user', INITIAL_USERS[0]));
+      const [currentUser, setCurrentUser] = useState(() => getStore('cm_auth_user', null));
+      const [tables, setTables] = useState(() => getStore('cm_tables', DEFAULT_TABLES));
+      const [users, setUsers] = useState(() => getStore('cm_users', DEFAULT_USERS));
+      const [settings, setSettings] = useState(() => getStore('cm_settings', DEFAULT_SETTINGS));
+      const [customers, setCustomers] = useState(() => getStore('cm_customers', [])); // CLEAN (NO DEMO DATA)
+      const [sessions, setSessions] = useState(() => getStore('cm_sessions', [])); // CLEAN (NO DEMO DATA)
 
-      const [activeTab, setActiveTab] = useState('tables');
+      const [activeTab, setActiveTab] = useState('dashboard');
+      const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
       const [checkoutData, setCheckoutData] = useState(null);
       const [receiptData, setReceiptData] = useState(null);
-      const [showLoginModal, setShowLoginModal] = useState(false);
+      const [newSessionModalOpen, setNewSessionModalOpen] = useState(false);
+      const [selectedTableForModal, setSelectedTableForModal] = useState(null);
 
-      // Auto save
-      useEffect(() => { setStore('snk_tables', tables); }, [tables]);
-      useEffect(() => { setStore('snk_sessions', sessions); }, [sessions]);
-      useEffect(() => { setStore('snk_customers', customers); }, [customers]);
-      useEffect(() => { setStore('snk_settings', settings); }, [settings]);
-      useEffect(() => { setStore('snk_users', users); }, [users]);
-      useEffect(() => { setStore('snk_user', currentUser); }, [currentUser]);
+      // Persistence
+      useEffect(() => { setStore('cm_auth_user', currentUser); }, [currentUser]);
+      useEffect(() => { setStore('cm_tables', tables); }, [tables]);
+      useEffect(() => { setStore('cm_users', users); }, [users]);
+      useEffect(() => { setStore('cm_settings', settings); }, [settings]);
+      useEffect(() => { setStore('cm_customers', customers); }, [customers]);
+      useEffect(() => { setStore('cm_sessions', sessions); }, [sessions]);
 
-      // Clock
+      // Clock (PKT Asia/Karachi)
+      const [pktDate, setPktDate] = useState('');
       const [pktTime, setPktTime] = useState('');
       useEffect(() => {
-        const tick = () => {
-          setPktTime(new Date().toLocaleTimeString('en-US', {
-            timeZone: 'Asia/Karachi',
-            hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: true
-          }));
+        const updateClock = () => {
+          const now = new Date();
+          setPktDate(now.toLocaleDateString('en-US', { timeZone: 'Asia/Karachi', weekday: 'long', day: '2-digit', month: 'short', year: 'numeric' }));
+          setPktTime(now.toLocaleTimeString('en-US', { timeZone: 'Asia/Karachi', hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: true }));
         };
-        tick();
-        const timer = setInterval(tick, 1000);
-        return () => clearInterval(timer);
+        updateClock();
+        const interval = setInterval(updateClock, 1000);
+        return () => clearInterval(interval);
       }, []);
 
-      // Start match
+      // Handlers
+      const handleLogin = (user) => {
+        setCurrentUser(user);
+        setActiveTab('dashboard');
+      };
+
+      const handleLogout = () => {
+        setCurrentUser(null);
+        localStorage.removeItem('cm_auth_user');
+      };
+
       const handleStartMatch = ({ tableId, customerName, customerPhone, gameType, rateApplied, rounds }) => {
         const sessionCode = `SNK-${Date.now().toString().slice(-6)}`;
-        if (customerName && customerName !== 'Walk-in Player') {
-          const exists = customers.find(c => c.name.toLowerCase() === customerName.toLowerCase());
+        if (customerName && customerName.trim() && customerName !== 'Walk-in Player') {
+          const exists = customers.find(c => c.name.toLowerCase() === customerName.trim().toLowerCase());
           if (exists) {
             setCustomers(prev => prev.map(c => c.id === exists.id ? { ...c, total_visits: (c.total_visits || 1) + 1 } : c));
           } else {
-            setCustomers(prev => [{ id: Date.now(), name: customerName, phone: customerPhone, notes: 'Counter check-in', total_visits: 1, total_spent: 0 }, ...prev]);
+            setCustomers(prev => [{ id: Date.now(), name: customerName.trim(), phone: customerPhone.trim(), notes: 'Counter match', total_visits: 1, total_spent: 0 }, ...prev]);
           }
         }
 
@@ -188,8 +232,8 @@
               status: 'occupied',
               session: {
                 session_code: sessionCode,
-                customer_name: customerName,
-                customer_phone: customerPhone,
+                customer_name: customerName || 'Walk-in Player',
+                customer_phone: customerPhone || '',
                 game_type: gameType,
                 rate_applied: rateApplied,
                 rounds: rounds,
@@ -200,9 +244,9 @@
           }
           return t;
         }));
+        setNewSessionModalOpen(false);
       };
 
-      // Update rounds
       const handleUpdateRounds = (tableId, newRounds) => {
         setTables(prev => prev.map(t => {
           if (t.id === tableId && t.session) {
@@ -212,7 +256,6 @@
         }));
       };
 
-      // Confirm cash settlement
       const handleConfirmSettlement = ({ tableId, tableName, customerName, customerPhone, gameType, rateApplied, rounds, durationSeconds, subtotal, discount, totalPrice, notes, shouldPrint }) => {
         const sessionRecord = {
           id: Date.now(),
@@ -250,212 +293,364 @@
         }
       };
 
-      // Stats
-      const activeCount = tables.filter(t => t.status === 'occupied').length;
-      const todayTotalCash = sessions.reduce((sum, s) => sum + (Number(s.total_price) || 0), 0);
+      // IF USER NOT LOGGED IN: SHOW THE EXACT LOGIN SCREEN (MEDIA_1790779450790)
+      if (!currentUser) {
+        return (
+          <LoginPage
+            settings={settings}
+            users={users}
+            onLogin={handleLogin}
+          />
+        );
+      }
+
+      // ACTIVE METRICS
+      const activeSessions = tables.filter(t => t.status === 'occupied' && t.session);
+      const totalRevenueToday = sessions.reduce((sum, s) => sum + (Number(s.total_price) || 0), 0);
+      const totalCenturyMinutes = sessions.filter(s => s.game_type === 'century').reduce((sum, s) => sum + Math.ceil((Number(s.duration_seconds) || 0) / 60), 0);
+      const totalFramesCount = sessions.filter(s => s.game_type !== 'century').reduce((sum, s) => sum + (Number(s.rounds) || 0), 0);
 
       return (
-        <div className="min-h-screen flex flex-col font-sans">
+        <div className="min-h-screen flex flex-col md:flex-row antialiased bg-[#F8F9FA]">
           
-          {/* HEADER / NAVBAR */}
-          <header className="bg-black text-white border-b-4 border-black sticky top-0 z-40 shadow-brutal">
-            <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-              <div className="flex items-center justify-between h-20">
-                
-                {/* Brand */}
-                <div className="flex items-center gap-3">
-                  <div className="w-12 h-12 bg-brand-yellow text-black font-black text-2xl flex items-center justify-center border-brutal shadow-brutal-sm rotate-[-3deg]">
-                    🎱
-                  </div>
-                  <div>
-                    <div className="flex items-center gap-2">
-                      <span className="text-2xl font-black tracking-tight text-brand-yellow uppercase">
-                        CueMaster
-                      </span>
-                      <span className="bg-white text-black text-xs font-bold px-2 py-0.5 border border-black uppercase tracking-wider">
-                        POS LIVE
-                      </span>
-                    </div>
-                    <p className="text-xs text-zinc-400 font-mono flex items-center gap-2">
-                      <span>PKT (Karachi):</span>
-                      <span className="text-brand-yellow font-bold">{pktTime || 'Loading...'}</span>
-                    </p>
-                  </div>
-                </div>
-
-                {/* Quick Metrics */}
-                <div className="hidden md:flex items-center gap-4">
-                  <div className="bg-zinc-900 border-2 border-zinc-700 px-3 py-1.5 text-xs flex items-center gap-2">
-                    <span className="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-pulse"></span>
-                    <span className="text-zinc-400">Live Tables:</span>
-                    <span className="font-bold text-white font-mono">{activeCount} / {tables.length}</span>
-                  </div>
-                  <div className="bg-zinc-900 border-2 border-zinc-700 px-3 py-1.5 text-xs flex items-center gap-2">
-                    <span className="text-brand-yellow font-bold">💵 Cash Drawer:</span>
-                    <span className="font-bold text-brand-yellow font-mono text-sm">
-                      Rs. {todayTotalCash.toLocaleString()}
-                    </span>
-                  </div>
-                </div>
-
-                {/* User / Sign In */}
-                <div className="flex items-center gap-3">
-                  {currentUser ? (
-                    <div className="flex items-center gap-2">
-                      <div className="text-right hidden sm:block">
-                        <div className="text-xs font-bold text-white uppercase">{currentUser.name}</div>
-                        <span className={`text-[10px] font-bold uppercase px-1.5 py-0.2 border ${currentUser.role === 'admin' ? 'bg-brand-yellow text-black border-black' : 'bg-zinc-800 text-zinc-300 border-zinc-600'}`}>
-                          {currentUser.role}
-                        </span>
-                      </div>
-                      <button
-                        onClick={() => { setCurrentUser(null); localStorage.removeItem('snk_user'); }}
-                        className="bg-red-600 hover:bg-red-500 text-white text-xs font-bold px-3 py-2 border-2 border-white shadow-brutal-sm uppercase"
-                      >
-                        Logout
-                      </button>
-                    </div>
-                  ) : (
-                    <button
-                      onClick={() => setShowLoginModal(true)}
-                      className="bg-brand-yellow hover:bg-yellow-400 text-black text-xs font-black px-4 py-2 border-2 border-black shadow-brutal-sm uppercase"
-                    >
-                      Sign In
-                    </button>
-                  )}
-                </div>
-
+          {/* MOBILE TOP BAR */}
+          <header className="md:hidden bg-white border-b-2 border-black p-4 flex items-center justify-between sticky top-0 z-40">
+            <div className="flex items-center space-x-2">
+              <div className="w-8 h-8 bg-brand-yellow border-2 border-black flex items-center justify-center font-bold text-sm shadow-brutal-sm">
+                🎱
               </div>
-
-              {/* Navigation Tabs */}
-              <div className="flex overflow-x-auto gap-2 pb-3 pt-1 scrollbar-none">
-                <button
-                  onClick={() => setActiveTab('tables')}
-                  className={`px-4 py-2 text-sm font-bold border-2 border-black uppercase flex items-center gap-2 whitespace-nowrap transition-all ${activeTab === 'tables' ? 'bg-brand-yellow text-black shadow-brutal-sm -translate-y-0.5' : 'bg-zinc-800 text-zinc-300 hover:bg-zinc-700'}`}
-                >
-                  🎱 Live Tables
-                  {activeCount > 0 && <span className="bg-red-600 text-white text-[11px] font-bold px-1.5 py-0.2 rounded-full">{activeCount}</span>}
-                </button>
-
-                <button
-                  onClick={() => setActiveTab('customers')}
-                  className={`px-4 py-2 text-sm font-bold border-2 border-black uppercase flex items-center gap-2 whitespace-nowrap transition-all ${activeTab === 'customers' ? 'bg-brand-yellow text-black shadow-brutal-sm -translate-y-0.5' : 'bg-zinc-800 text-zinc-300 hover:bg-zinc-700'}`}
-                >
-                  👥 Players Directory
-                </button>
-
-                <button
-                  onClick={() => setActiveTab('reports')}
-                  className={`px-4 py-2 text-sm font-bold border-2 border-black uppercase flex items-center gap-2 whitespace-nowrap transition-all ${activeTab === 'reports' ? 'bg-brand-yellow text-black shadow-brutal-sm -translate-y-0.5' : 'bg-zinc-800 text-zinc-300 hover:bg-zinc-700'}`}
-                >
-                  📊 Cash Ledger & Reports
-                </button>
-
-                {currentUser && currentUser.role === 'admin' && (
-                  <button
-                    onClick={() => setActiveTab('settings')}
-                    className={`px-4 py-2 text-sm font-bold border-2 border-black uppercase flex items-center gap-2 whitespace-nowrap transition-all ${activeTab === 'settings' ? 'bg-brand-yellow text-black shadow-brutal-sm -translate-y-0.5' : 'bg-zinc-800 text-zinc-300 hover:bg-zinc-700'}`}
-                  >
-                    ⚙️ Rates & Club Settings
-                  </button>
-                )}
-              </div>
-
+              <span className="font-black tracking-tight text-base uppercase">{settings.club_name}</span>
+            </div>
+            <div className="flex items-center space-x-2">
+              <button
+                onClick={() => { setSelectedTableForModal(tables.find(t => t.status === 'available') || tables[0]); setNewSessionModalOpen(true); }}
+                className="btn-brutal px-3 py-1 bg-brand-yellow text-xs flex items-center gap-1"
+              >
+                <i className="fa-solid fa-plus text-[10px]"></i>
+                <span>NEW</span>
+              </button>
+              <button
+                onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+                className="p-2 border-2 border-black bg-white hover:bg-gray-100"
+              >
+                <i className="fa-solid fa-bars"></i>
+              </button>
             </div>
           </header>
 
-          {/* MAIN BODY VIEW */}
-          <main className="flex-1 max-w-7xl w-full mx-auto p-4 sm:p-6 lg:p-8">
+          {/* SIDEBAR NAVIGATION (RESPONSIVE) */}
+          <aside className={`${mobileMenuOpen ? 'flex' : 'hidden'} md:flex flex-col w-full md:w-64 bg-white border-r-2 border-black shrink-0 min-h-screen sticky top-0 z-30 justify-between`}>
+            <div>
+              {/* Brand Logo / Header */}
+              <div className="p-5 border-b-2 border-black bg-white">
+                <div className="flex items-center space-x-3">
+                  <div className="w-10 h-10 bg-brand-yellow border-2 border-black flex items-center justify-center text-lg font-black shadow-brutal-sm">
+                    🎱
+                  </div>
+                  <div>
+                    <h1 className="font-black text-lg tracking-tight uppercase leading-tight">{settings.club_name}</h1>
+                    <p className="text-[11px] font-bold text-gray-500 uppercase tracking-wider">{settings.tagline}</p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Action Button: + NEW SESSION */}
+              <div className="p-4 border-b-2 border-black bg-gray-50">
+                <button
+                  onClick={() => { setSelectedTableForModal(tables.find(t => t.status === 'available') || tables[0]); setNewSessionModalOpen(true); setMobileMenuOpen(false); }}
+                  className="w-full btn-brutal py-3 px-4 bg-brand-yellow hover:bg-yellow-400 text-black flex items-center justify-center gap-2 text-sm uppercase tracking-wide font-black"
+                >
+                  <i className="fa-solid fa-circle-plus text-base"></i>
+                  <span>+ NEW SESSION</span>
+                </button>
+              </div>
+
+              {/* Main Navigation Menu */}
+              <nav className="p-3 space-y-1.5 text-sm font-bold">
+                <button
+                  onClick={() => { setActiveTab('dashboard'); setMobileMenuOpen(false); }}
+                  className={`w-full flex items-center gap-3 px-3.5 py-2.5 rounded-none border-2 text-left transition ${
+                    activeTab === 'dashboard' ? 'bg-black text-white border-black shadow-brutal-sm' : 'border-transparent text-gray-800 hover:border-black hover:bg-gray-100'
+                  }`}
+                >
+                  <i className="fa-solid fa-chart-pie w-4 text-center"></i>
+                  <span>Dashboard</span>
+                  {activeSessions.length > 0 && (
+                    <span className="ml-auto bg-red-600 text-white text-[10px] font-mono px-1.5 py-0.2 rounded-full animate-pulse">
+                      {activeSessions.length}
+                    </span>
+                  )}
+                </button>
+
+                <button
+                  onClick={() => { setActiveTab('history'); setMobileMenuOpen(false); }}
+                  className={`w-full flex items-center gap-3 px-3.5 py-2.5 rounded-none border-2 text-left transition ${
+                    activeTab === 'history' ? 'bg-black text-white border-black shadow-brutal-sm' : 'border-transparent text-gray-800 hover:border-black hover:bg-gray-100'
+                  }`}
+                >
+                  <i className="fa-solid fa-clock-rotate-left w-4 text-center"></i>
+                  <span>Sessions History</span>
+                </button>
+
+                <button
+                  onClick={() => { setActiveTab('customers'); setMobileMenuOpen(false); }}
+                  className={`w-full flex items-center gap-3 px-3.5 py-2.5 rounded-none border-2 text-left transition ${
+                    activeTab === 'customers' ? 'bg-black text-white border-black shadow-brutal-sm' : 'border-transparent text-gray-800 hover:border-black hover:bg-gray-100'
+                  }`}
+                >
+                  <i className="fa-solid fa-users w-4 text-center"></i>
+                  <span>Customers</span>
+                </button>
+
+                <button
+                  onClick={() => { setActiveTab('tables'); setMobileMenuOpen(false); }}
+                  className={`w-full flex items-center gap-3 px-3.5 py-2.5 rounded-none border-2 text-left transition ${
+                    activeTab === 'tables' ? 'bg-black text-white border-black shadow-brutal-sm' : 'border-transparent text-gray-800 hover:border-black hover:bg-gray-100'
+                  }`}
+                >
+                  <i className="fa-solid fa-border-all w-4 text-center"></i>
+                  <span>Tables & Rates</span>
+                </button>
+
+                <button
+                  onClick={() => { setActiveTab('reports'); setMobileMenuOpen(false); }}
+                  className={`w-full flex items-center gap-3 px-3.5 py-2.5 rounded-none border-2 text-left transition ${
+                    activeTab === 'reports' ? 'bg-black text-white border-black shadow-brutal-sm' : 'border-transparent text-gray-800 hover:border-black hover:bg-gray-100'
+                  }`}
+                >
+                  <i className="fa-solid fa-file-invoice-dollar w-4 text-center"></i>
+                  <span>Reports</span>
+                </button>
+
+                {currentUser.role === 'admin' && (
+                  <div className="pt-3">
+                    <div className="px-3 pb-1">
+                      <span className="text-[10px] uppercase font-black tracking-widest text-gray-400">Admin Controls</span>
+                    </div>
+
+                    <button
+                      onClick={() => { setActiveTab('settings'); setMobileMenuOpen(false); }}
+                      className={`w-full flex items-center gap-3 px-3.5 py-2.5 rounded-none border-2 text-left transition ${
+                        activeTab === 'settings' ? 'bg-black text-white border-black shadow-brutal-sm' : 'border-transparent text-gray-800 hover:border-black hover:bg-gray-100'
+                      }`}
+                    >
+                      <i className="fa-solid fa-sliders w-4 text-center"></i>
+                      <span>Settings</span>
+                    </button>
+
+                    <button
+                      onClick={() => { setActiveTab('users'); setMobileMenuOpen(false); }}
+                      className={`w-full flex items-center gap-3 px-3.5 py-2.5 rounded-none border-2 text-left transition ${
+                        activeTab === 'users' ? 'bg-black text-white border-black shadow-brutal-sm' : 'border-transparent text-gray-800 hover:border-black hover:bg-gray-100'
+                      }`}
+                    >
+                      <i className="fa-solid fa-user-shield w-4 text-center"></i>
+                      <span>Staff & Users</span>
+                    </button>
+                  </div>
+                )}
+              </nav>
+            </div>
+
+            {/* User Profile & Logout */}
+            <div className="p-4 border-t-2 border-black bg-gray-50">
+              <div className="flex items-center justify-between mb-3">
+                <div>
+                  <p className="font-bold text-sm text-gray-900 leading-tight">{currentUser.name}</p>
+                  <span className={`inline-block mt-0.5 px-2 py-0.5 text-[10px] font-black uppercase tracking-wider border border-black ${
+                    currentUser.role === 'admin' ? 'bg-brand-yellow text-black' : 'bg-gray-200 text-gray-800'
+                  }`}>
+                    {currentUser.role}
+                  </span>
+                </div>
+                <button
+                  onClick={handleLogout}
+                  title="Logout"
+                  className="p-2 border border-black bg-white hover:bg-red-50 hover:text-red-600 transition"
+                >
+                  <i className="fa-solid fa-arrow-right-from-bracket text-xs"></i>
+                </button>
+              </div>
+              <p className="text-[10px] font-mono text-gray-500 uppercase flex items-center gap-1">
+                <span>PKT:</span>
+                <span className="font-bold text-black">{pktTime}</span>
+              </p>
+            </div>
+          </aside>
+
+          {/* MAIN VIEW CONTENT AREA */}
+          <main className="flex-1 p-4 sm:p-6 lg:p-8 max-w-7xl w-full">
             
-            {/* VIEW 1: LIVE TABLES */}
-            {activeTab === 'tables' && (
+            {/* VIEW 1: RECEPTION DASHBOARD */}
+            {activeTab === 'dashboard' && (
               <div className="space-y-6">
                 
-                {/* Notice Banner */}
-                <div className="bg-white border-brutal-thick p-4 shadow-brutal flex flex-col sm:flex-row justify-between items-center gap-3">
-                  <div className="flex items-center gap-3">
-                    <span className="text-3xl">🎱</span>
-                    <div>
-                      <h1 className="text-lg font-black uppercase text-black">
-                        Active Counter & Tables POS
-                      </h1>
-                      <p className="text-xs text-zinc-600 font-bold">
-                        Century: Rs.{settings.default_century}/min | 6 Ball: Rs.{settings.default_6ball} | 10 Ball: Rs.{settings.default_10ball} | One Ball: Rs.{settings.default_oneball}
-                      </p>
-                    </div>
+                {/* Header */}
+                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 pb-2 border-b-2 border-black">
+                  <div>
+                    <h1 className="text-2xl sm:text-3xl font-black uppercase tracking-tight text-gray-950 flex items-center gap-2">
+                      <span>Reception Dashboard</span>
+                    </h1>
+                    <p className="text-xs font-bold text-gray-600 uppercase tracking-widest mt-0.5">
+                      Live Operations • {pktDate} (PKT)
+                    </p>
                   </div>
-
-                  <div className="flex items-center gap-2 text-xs font-black uppercase">
-                    <span className="bg-emerald-500 text-black px-3 py-1 border border-black shadow-brutal-sm">
-                      ● {tables.length - activeCount} Vacant
-                    </span>
-                    <span className="bg-red-600 text-white px-3 py-1 border border-black shadow-brutal-sm animate-pulse">
-                      ● {activeCount} In Play
-                    </span>
+                  <div className="flex items-center gap-3">
+                    <button
+                      onClick={() => { setSelectedTableForModal(tables.find(t => t.status === 'available') || tables[0]); setNewSessionModalOpen(true); }}
+                      className="btn-brutal px-6 py-3 bg-brand-yellow hover:bg-yellow-400 text-black text-sm uppercase tracking-wider flex items-center gap-2 font-black"
+                    >
+                      <i className="fa-solid fa-play text-xs"></i>
+                      <span>+ NEW SESSION</span>
+                    </button>
                   </div>
                 </div>
 
-                {/* 6 Tables Grid */}
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                  {tables.map(table => (
-                    <TableItem
-                      key={table.id}
-                      table={table}
-                      onStart={handleStartMatch}
-                      onEnd={(t, elapsed, total) => setCheckoutData({ table: t, elapsedSeconds: elapsed, initialTotal: total })}
-                      onUpdateRounds={handleUpdateRounds}
-                    />
-                  ))}
+                {/* ACTIVE SESSION RECOVERY BANNER (IF ANY TABLE IS ACTIVE) */}
+                {activeSessions.length > 0 && (
+                  <div className="card-brutal p-5 bg-amber-50 border-amber-600 border-2 shadow-brutal">
+                    <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+                      <div className="flex items-start gap-3">
+                        <div className="w-10 h-10 bg-brand-yellow border-2 border-black flex items-center justify-center text-lg shrink-0 mt-0.5 shadow-brutal-sm">
+                          <i className="fa-solid fa-bell text-black animate-pulse"></i>
+                        </div>
+                        <div>
+                          <div className="flex items-center gap-2">
+                            <span className="badge-brutal px-2 py-0.5 bg-black text-white text-[11px]">ACTIVE SESSION RUNNING</span>
+                            <span className="font-bold text-xs text-amber-900">{activeSessions.length} table(s) currently in play</span>
+                          </div>
+                          <div className="mt-2 text-xs font-bold text-gray-700">
+                            Counter matches are live and counting in Pakistani Rupees (Rs.). Settle cash to print thermal slip.
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* TODAY'S REAL SUMMARY METRICS */}
+                <div className="space-y-2">
+                  <h2 className="text-xs font-black uppercase tracking-widest text-gray-700 flex items-center gap-1.5">
+                    <i className="fa-solid fa-calendar-day"></i>
+                    <span>TODAY'S CASH & PLAY SUMMARY</span>
+                  </h2>
+
+                  <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3 sm:gap-4">
+                    {/* Sessions */}
+                    <div className="card-brutal p-4 bg-white">
+                      <p className="text-[11px] font-black uppercase text-gray-500 tracking-wider">Sessions</p>
+                      <p className="text-3xl font-black text-gray-950 font-mono mt-1">{sessions.length}</p>
+                      <p className="text-[10px] font-bold text-gray-400 mt-1 uppercase">Today</p>
+                    </div>
+
+                    {/* Active Tables */}
+                    <div className="card-brutal p-4 bg-yellow-50 border-black">
+                      <p className="text-[11px] font-black uppercase text-gray-700 tracking-wider">Active Tables</p>
+                      <p className="text-3xl font-black text-black font-mono mt-1">{activeSessions.length}</p>
+                      <p className="text-[10px] font-bold text-gray-500 mt-1 uppercase">In play right now</p>
+                    </div>
+
+                    {/* Total Sales */}
+                    <div className="card-brutal p-4 bg-white border-brand-yellow">
+                      <p className="text-[11px] font-black uppercase text-gray-500 tracking-wider">Total Sales</p>
+                      <p className="text-2xl sm:text-3xl font-black text-gray-950 font-mono mt-1 truncate">
+                        Rs. {totalRevenueToday.toLocaleString()}
+                      </p>
+                      <p className="text-[10px] font-bold text-emerald-600 mt-1 uppercase">Cash Collected</p>
+                    </div>
+
+                    {/* Century Time */}
+                    <div className="card-brutal p-4 bg-white">
+                      <p className="text-[11px] font-black uppercase text-gray-500 tracking-wider">Century Time</p>
+                      <p className="text-3xl font-black text-gray-950 font-mono mt-1">{totalCenturyMinutes} <span className="text-sm font-normal">m</span></p>
+                      <p className="text-[10px] font-bold text-gray-400 mt-1 uppercase">Time Played</p>
+                    </div>
+
+                    {/* Frames */}
+                    <div className="card-brutal p-4 bg-white">
+                      <p className="text-[11px] font-black uppercase text-gray-500 tracking-wider">Total Frames</p>
+                      <p className="text-3xl font-black text-gray-950 font-mono mt-1">{totalFramesCount}</p>
+                      <p className="text-[10px] font-bold text-gray-400 mt-1 uppercase">6B / 10B / 1B</p>
+                    </div>
+                  </div>
+                </div>
+
+                {/* TABLES GRID (6 TABLES) */}
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between">
+                    <h2 className="text-xs font-black uppercase tracking-widest text-gray-700 flex items-center gap-1.5">
+                      <i className="fa-solid fa-border-all"></i>
+                      <span>SNOOKER TABLES LIVE STATUS</span>
+                    </h2>
+                    <span className="text-xs font-mono font-bold text-gray-500">
+                      {tables.length - activeSessions.length} Vacant • {activeSessions.length} Occupied
+                    </span>
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                    {tables.map(table => (
+                      <TableCardItem
+                        key={table.id}
+                        table={table}
+                        onStartSession={(t) => { setSelectedTableForModal(t); setNewSessionModalOpen(true); }}
+                        onEndSession={(t, elapsed, total) => setCheckoutData({ table: t, elapsedSeconds: elapsed, initialTotal: total })}
+                        onUpdateRounds={handleUpdateRounds}
+                      />
+                    ))}
+                  </div>
                 </div>
 
               </div>
             )}
 
-            {/* VIEW 2: PLAYERS DIRECTORY */}
+            {/* VIEW 2: SESSIONS HISTORY */}
+            {activeTab === 'history' && (
+              <SessionsHistoryView sessions={sessions} />
+            )}
+
+            {/* VIEW 3: CUSTOMERS */}
             {activeTab === 'customers' && (
-              <PlayersView
+              <CustomersDirectoryView
                 customers={customers}
                 onAdd={(c) => setCustomers(prev => [c, ...prev])}
               />
             )}
 
-            {/* VIEW 3: CASH REPORTS */}
-            {activeTab === 'reports' && (
-              <LedgerReportsView sessions={sessions} settings={settings} />
+            {/* VIEW 4: TABLES & RATES */}
+            {activeTab === 'tables' && (
+              <TablesRatesView
+                tables={tables}
+                onUpdateRate={(id, f, val) => setTables(prev => prev.map(t => t.id === id ? { ...t, [f]: val } : t))}
+              />
             )}
 
-            {/* VIEW 4: SETTINGS (ADMIN) */}
-            {activeTab === 'settings' && (
-              <SettingsPanel
+            {/* VIEW 5: REPORTS */}
+            {activeTab === 'reports' && (
+              <ReportsLedgerView sessions={sessions} settings={settings} />
+            )}
+
+            {/* VIEW 6: SETTINGS (ADMIN) */}
+            {activeTab === 'settings' && currentUser.role === 'admin' && (
+              <ClubSettingsView
                 settings={settings}
-                onSave={setSettings}
-                tables={tables}
-                onUpdateTableRate={(id, f, val) => setTables(prev => prev.map(t => t.id === id ? { ...t, [f]: val } : t))}
-                onReset={() => {
-                  localStorage.clear();
-                  setTables(INITIAL_TABLES);
-                  setSettings(INITIAL_SETTINGS);
-                  setCustomers(INITIAL_CUSTOMERS);
-                  setSessions(INITIAL_SESSIONS);
-                  setUsers(INITIAL_USERS);
-                  setCurrentUser(INITIAL_USERS[0]);
-                  alert('Reset to defaults.');
-                }}
+                onSave={(s) => { setSettings(s); alert('Settings saved successfully!'); }}
+              />
+            )}
+
+            {/* VIEW 7: USERS & STAFF (ADMIN) */}
+            {activeTab === 'users' && currentUser.role === 'admin' && (
+              <UsersManagerView
+                users={users}
+                onAddUser={(u) => setUsers(prev => [...prev, u])}
+                onToggleStatus={(id) => setUsers(prev => prev.map(u => u.id === id ? { ...u, is_active: !u.is_active } : u))}
               />
             )}
 
           </main>
 
-          {/* FOOTER */}
-          <footer className="bg-black text-zinc-400 border-t-4 border-black py-4 px-6 text-center text-xs font-mono">
-            <p>
-              🎱 <strong>{settings.club_name}</strong> — Counter Terminal & Snooker POS | Standard Pakistan Format: Asia/Karachi (PKT)
-            </p>
-          </footer>
-
           {/* CHECKOUT MODAL */}
           {checkoutData && (
-            <CheckoutModalBox
+            <CheckoutModal
               data={checkoutData}
               onClose={() => setCheckoutData(null)}
               onConfirm={handleConfirmSettlement}
@@ -464,19 +659,21 @@
 
           {/* THERMAL RECEIPT MODAL */}
           {receiptData && (
-            <ReceiptBox
+            <ThermalReceiptModal
               data={receiptData}
               settings={settings}
               onClose={() => setReceiptData(null)}
             />
           )}
 
-          {/* LOGIN MODAL */}
-          {showLoginModal && (
-            <LoginBox
-              users={users}
-              onLogin={(u) => { setCurrentUser(u); setStore('snk_user', u); setShowLoginModal(false); }}
-              onClose={() => setShowLoginModal(false)}
+          {/* NEW SESSION MODAL */}
+          {newSessionModalOpen && (
+            <NewSessionModal
+              table={selectedTableForModal}
+              tables={tables}
+              customers={customers}
+              onClose={() => setNewSessionModalOpen(false)}
+              onStart={handleStartMatch}
             />
           )}
 
@@ -484,13 +681,141 @@
       );
     }
 
-    // --- TABLE ITEM COMPONENT ---
-    function TableItem({ table, onStart, onEnd, onUpdateRounds }) {
+    // ==========================================
+    // EXACT LOGIN PAGE (MATCHING SCREENSHOT 100%)
+    // ==========================================
+    function LoginPage({ settings, users, onLogin }) {
+      const [username, setUsername] = useState('');
+      const [password, setPassword] = useState('');
+      const [remember, setRemember] = useState(true);
+      const [error, setError] = useState('');
+
+      const handleSubmit = (e) => {
+        e.preventDefault();
+        const found = users.find(u => u.username.toLowerCase() === username.trim().toLowerCase() && u.password === password);
+        if (found) {
+          if (!found.is_active) {
+            setError('Account has been deactivated by administrator.');
+            return;
+          }
+          onLogin(found);
+        } else {
+          setError('Invalid username or password. Default logins: admin / admin123 or staff / staff123');
+        }
+      };
+
+      const handleQuick = (u, p) => {
+        const found = users.find(x => x.username === u && x.password === p);
+        if (found) onLogin(found);
+      };
+
+      return (
+        <div className="min-h-screen flex items-center justify-center p-4 bg-[#F4F4F0] antialiased">
+          <div className="max-w-md w-full">
+            
+            {/* Header Badge */}
+            <div className="text-center mb-6">
+              <div className="inline-flex items-center justify-center w-16 h-16 bg-[#FACC15] border-3 border-black shadow-[4px_4px_0px_0px_#000] text-3xl mb-3">
+                🎱
+              </div>
+              <h1 className="text-2xl font-black uppercase tracking-tight text-gray-950">{settings.club_name}</h1>
+              <p className="text-xs font-bold text-gray-600 uppercase tracking-widest mt-1">Reception Counter Access</p>
+            </div>
+
+            {/* Login Card */}
+            <div className="card-brutal p-6 sm:p-8 bg-white shadow-[6px_6px_0px_0px_#000]">
+              <h2 className="text-lg font-black uppercase tracking-tight mb-5 border-b-2 border-black pb-3 flex items-center justify-between">
+                <span>Authorized Access</span>
+                <span className="text-xs px-2 py-0.5 bg-yellow-300 border border-black font-mono font-bold">STAFF / ADMIN</span>
+              </h2>
+
+              {error && (
+                <div className="mb-5 p-3 bg-red-100 border-2 border-red-600 text-xs text-red-900 font-bold flex items-center gap-1.5">
+                  <i className="fa-solid fa-circle-exclamation text-red-600"></i>
+                  <span>{error}</span>
+                </div>
+              )}
+
+              <form onSubmit={handleSubmit} className="space-y-4">
+                <div>
+                  <label className="block text-xs font-black uppercase tracking-wider mb-1.5 text-gray-900">Username</label>
+                  <input
+                    type="text"
+                    required
+                    value={username}
+                    onChange={(e) => setUsername(e.target.value)}
+                    className="w-full input-brutal px-4 py-2.5 text-sm text-gray-900 font-bold"
+                    placeholder="Enter username"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-black uppercase tracking-wider mb-1.5 text-gray-900">Password</label>
+                  <input
+                    type="password"
+                    required
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    className="w-full input-brutal px-4 py-2.5 text-sm text-gray-900"
+                    placeholder="Enter password"
+                  />
+                </div>
+
+                <div className="flex items-center justify-between text-xs pt-1">
+                  <label className="flex items-center gap-2 cursor-pointer font-bold select-none">
+                    <input
+                      type="checkbox"
+                      checked={remember}
+                      onChange={(e) => setRemember(e.target.checked)}
+                      className="w-4 h-4 border-2 border-black rounded-none text-black focus:ring-0 cursor-pointer"
+                    />
+                    <span>Remember me on this counter</span>
+                  </label>
+                </div>
+
+                <button
+                  type="submit"
+                  className="w-full btn-brutal py-3 bg-[#FACC15] hover:bg-yellow-400 text-black text-sm uppercase tracking-wider flex items-center justify-center gap-2 mt-2 font-black shadow-[4px_4px_0px_0px_#000]"
+                >
+                  <i className="fa-solid fa-lock text-xs"></i>
+                  <span>Enter Dashboard</span>
+                </button>
+              </form>
+
+              {/* 1-Click Quick Fill Helper */}
+              <div className="mt-6 pt-4 border-t-2 border-dashed border-gray-300">
+                <div className="text-center text-[10px] font-black uppercase text-gray-400 mb-2">
+                  — Quick Fill Credentials —
+                </div>
+                <div className="grid grid-cols-2 gap-2">
+                  <button
+                    type="button"
+                    onClick={() => { setUsername('admin'); setPassword('admin123'); }}
+                    className="p-1.5 text-center text-xs font-bold border border-black bg-gray-50 hover:bg-yellow-100"
+                  >
+                    👑 Admin (admin)
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => { setUsername('staff'); setPassword('staff123'); }}
+                    className="p-1.5 text-center text-xs font-bold border border-black bg-gray-50 hover:bg-yellow-100"
+                  >
+                    🎱 Staff (staff)
+                  </button>
+                </div>
+              </div>
+
+            </div>
+          </div>
+        </div>
+      );
+    }
+
+    // ==========================================
+    // TABLE CARD ITEM
+    // ==========================================
+    function TableCardItem({ table, onStartSession, onEndSession, onUpdateRounds }) {
       const isOccupied = table.status === 'occupied' && table.session;
-      const [selectedGame, setSelectedGame] = useState('century');
-      const [custName, setCustName] = useState('');
-      const [custPhone, setCustPhone] = useState('');
-      const [rounds, setRounds] = useState(1);
       const [elapsed, setElapsed] = useState(0);
 
       useEffect(() => {
@@ -503,25 +828,18 @@
           setElapsed(diff);
         };
         calc();
-        const interval = setInterval(calc, 1000);
-        return () => clearInterval(interval);
+        const timer = setInterval(calc, 1000);
+        return () => clearInterval(timer);
       }, [isOccupied, table.session?.start_time]);
 
-      const formatTimer = (s) => {
+      const formatClock = (s) => {
         const hrs = Math.floor(s / 3600);
         const m = Math.floor((s % 3600) / 60);
         const sec = s % 60;
         return `${hrs.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}:${sec.toString().padStart(2, '0')}`;
       };
 
-      const getRate = (type) => {
-        if (type === 'century') return table.rate_century || 10;
-        if (type === '6ball') return table.rate_6ball || 130;
-        if (type === '10ball') return table.rate_10ball || 150;
-        return table.rate_oneball || 120;
-      };
-
-      const currentTotal = () => {
+      const calculateTotal = () => {
         if (!table.session) return 0;
         const rate = Number(table.session.rate_applied) || 10;
         if (table.session.game_type === 'century') {
@@ -531,185 +849,243 @@
       };
 
       return (
-        <div className={`border-brutal-thick flex flex-col justify-between shadow-brutal ${isOccupied ? 'bg-zinc-900 text-white' : 'bg-white text-black'}`}>
-          
-          {/* Header */}
-          <div className={`p-4 border-b-4 border-black flex items-center justify-between ${isOccupied ? 'bg-brand-yellow text-black' : 'bg-zinc-100 text-black'}`}>
-            <div>
-              <div className="flex items-center gap-2">
-                <span className="text-xl font-black uppercase">{table.name}</span>
-                <span className="text-[10px] font-black uppercase px-2 py-0.5 border border-black bg-white">{table.type}</span>
-              </div>
-              <div className="text-xs font-mono font-bold mt-0.5">
-                Century: Rs.{table.rate_century}/m | 6B: Rs.{table.rate_6ball} | 10B: Rs.{table.rate_10ball}
-              </div>
-            </div>
-            <div>
-              {isOccupied ? (
-                <span className="px-3 py-1 bg-red-600 text-white text-xs font-black uppercase border-2 border-black animate-pulse shadow-brutal-sm">
-                  LIVE IN PLAY
+        <div className="card-brutal p-5 bg-white flex flex-col justify-between">
+          <div>
+            {/* Header */}
+            <div className="flex items-start justify-between pb-3 border-b-2 border-black">
+              <div>
+                <h3 className="font-black text-lg uppercase tracking-tight text-gray-950 flex items-center gap-2">
+                  <span>{table.name}</span>
+                </h3>
+                <span className="text-[10px] font-bold uppercase tracking-wider text-gray-500 font-mono">
+                  {table.type} Table
                 </span>
-              ) : (
-                <span className="px-3 py-1 bg-emerald-500 text-black text-xs font-black uppercase border-2 border-black shadow-brutal-sm">
-                  VACANT
-                </span>
-              )}
+              </div>
+              <span className={`badge-brutal px-2.5 py-1 text-[11px] ${
+                isOccupied ? 'bg-red-500 text-white animate-pulse' : 'bg-emerald-400 text-black'
+              }`}>
+                {isOccupied ? 'In Play' : 'Available'}
+              </span>
             </div>
-          </div>
 
-          {/* Body */}
-          <div className="p-5 flex-1 flex flex-col justify-between">
+            {/* Rates strip */}
+            <div className="py-2.5 border-b border-gray-200 grid grid-cols-4 gap-1 text-[10px] font-bold text-center text-gray-600 uppercase font-mono">
+              <div className="bg-gray-100 p-1 border border-gray-300">Cen: {table.rate_century}</div>
+              <div className="bg-gray-100 p-1 border border-gray-300">6B: {table.rate_6ball}</div>
+              <div className="bg-gray-100 p-1 border border-gray-300">10B: {table.rate_10ball}</div>
+              <div className="bg-gray-100 p-1 border border-gray-300">1B: {table.rate_oneball}</div>
+            </div>
+
+            {/* Dynamic Status View */}
             {isOccupied ? (
-              <div className="space-y-4">
-                
-                {/* Clock */}
-                <div className="bg-black border-2 border-zinc-700 p-4 text-center">
-                  <div className="text-xs uppercase tracking-widest text-zinc-400 font-bold mb-1">Elapsed Match Time</div>
-                  <div className="text-4xl sm:text-5xl font-black font-mono tracking-wider text-brand-yellow">
-                    {formatTimer(elapsed)}
+              <div className="py-4 space-y-3">
+                <div className="bg-amber-50 border-2 border-black p-3 text-center">
+                  <div className="text-[10px] font-bold uppercase text-gray-500 tracking-wider">Elapsed Time</div>
+                  <div className="text-3xl font-black font-mono tracking-wider text-amber-900 mt-0.5">
+                    {formatClock(elapsed)}
                   </div>
-                  <div className="mt-3 pt-3 border-t border-zinc-800 flex items-center justify-between">
-                    <span className="text-xs text-zinc-400 font-bold uppercase">Current Cash Due:</span>
-                    <span className="text-2xl font-black font-mono text-emerald-400">Rs. {currentTotal().toLocaleString()}</span>
+                  <div className="mt-2 pt-2 border-t border-amber-200 flex justify-between items-center text-xs font-bold">
+                    <span className="text-gray-600 uppercase text-[10px]">Current Bill:</span>
+                    <span className="font-mono text-base font-black text-black">
+                      Rs. {calculateTotal().toLocaleString()}
+                    </span>
                   </div>
                 </div>
 
-                {/* Details */}
-                <div className="bg-zinc-800 border-2 border-zinc-700 p-3 space-y-2 text-xs">
-                  <div className="flex justify-between items-center">
-                    <span className="text-zinc-400 uppercase font-bold">Player:</span>
-                    <span className="font-bold text-white text-sm">{table.session.customer_name || 'Walk-in'}</span>
+                <div className="space-y-1 text-xs">
+                  <div className="flex justify-between">
+                    <span className="text-gray-500 font-bold uppercase text-[10px]">Player:</span>
+                    <span className="font-black text-gray-900">{table.session.customer_name}</span>
                   </div>
-                  <div className="flex justify-between items-center">
-                    <span className="text-zinc-400 uppercase font-bold">Game:</span>
-                    <span className="font-black text-brand-yellow uppercase bg-black px-2 py-0.5 border border-zinc-600">
+                  <div className="flex justify-between">
+                    <span className="text-gray-500 font-bold uppercase text-[10px]">Mode:</span>
+                    <span className="font-bold uppercase text-amber-800 bg-amber-100 px-1 border border-black">
                       {table.session.game_type}
                     </span>
                   </div>
-
-                  {table.session.game_type !== 'century' ? (
-                    <div className="flex justify-between items-center pt-2 border-t border-zinc-700">
-                      <span className="text-zinc-400 uppercase font-bold">Frames / Rounds:</span>
-                      <div className="flex items-center gap-2">
+                  {table.session.game_type !== 'century' && (
+                    <div className="flex justify-between items-center pt-1">
+                      <span className="text-gray-500 font-bold uppercase text-[10px]">Frames:</span>
+                      <div className="flex items-center gap-1.5">
                         <button
                           onClick={() => onUpdateRounds(table.id, (table.session.rounds || 1) - 1)}
-                          className="w-7 h-7 bg-zinc-700 hover:bg-zinc-600 text-white font-black text-sm border border-zinc-500"
+                          className="w-6 h-6 bg-gray-200 hover:bg-gray-300 border border-black font-black text-xs"
                         >-</button>
-                        <span className="font-black font-mono text-base px-2 text-white">{table.session.rounds || 1}</span>
+                        <span className="font-mono font-black text-sm px-1.5">{table.session.rounds || 1}</span>
                         <button
                           onClick={() => onUpdateRounds(table.id, (table.session.rounds || 1) + 1)}
-                          className="w-7 h-7 bg-brand-yellow hover:bg-yellow-400 text-black font-black text-sm border border-black"
+                          className="w-6 h-6 bg-brand-yellow hover:bg-yellow-400 border border-black font-black text-xs"
                         >+</button>
                       </div>
                     </div>
-                  ) : (
-                    <div className="flex justify-between items-center pt-1 border-t border-zinc-700">
-                      <span className="text-zinc-400 uppercase font-bold">Billed Time:</span>
-                      <span className="font-mono font-bold text-zinc-200">{Math.max(1, Math.ceil(elapsed / 60))} mins @ Rs.{table.session.rate_applied}/m</span>
-                    </div>
                   )}
                 </div>
-
-                <button
-                  onClick={() => onEnd(table, elapsed, currentTotal())}
-                  className="w-full bg-red-600 hover:bg-red-500 text-white font-black text-sm uppercase py-3.5 px-4 border-2 border-white shadow-brutal-sm flex items-center justify-center gap-2"
-                >
-                  <span>🏁 End Match & Settle Cash</span>
-                  <span className="font-mono bg-black text-brand-yellow px-2 py-0.5 text-xs">Rs. {currentTotal()}</span>
-                </button>
-
               </div>
             ) : (
-              <form onSubmit={(e) => {
-                e.preventDefault();
-                onStart({
-                  tableId: table.id,
-                  customerName: custName.trim() || 'Walk-in Player',
-                  customerPhone: custPhone.trim(),
-                  gameType: selectedGame,
-                  rateApplied: getRate(selectedGame),
-                  rounds: selectedGame === 'century' ? 1 : Number(rounds) || 1
-                });
-                setCustName(''); setCustPhone(''); setRounds(1);
-              }} className="space-y-4">
-                
-                <div>
-                  <label className="block text-xs font-black uppercase mb-1.5">Select Game Mode:</label>
-                  <div className="grid grid-cols-2 gap-2">
-                    {[
-                      { id: 'century', name: 'Century', rate: `Rs.${table.rate_century}/min` },
-                      { id: '6ball', name: '6 Ball', rate: `Rs.${table.rate_6ball}/frame` },
-                      { id: '10ball', name: '10 Ball', rate: `Rs.${table.rate_10ball}/frame` },
-                      { id: 'oneball', name: 'One Ball', rate: `Rs.${table.rate_oneball}/frame` },
-                    ].map(g => (
-                      <button
-                        type="button"
-                        key={g.id}
-                        onClick={() => setSelectedGame(g.id)}
-                        className={`p-2 text-left border-2 border-black ${selectedGame === g.id ? 'bg-brand-yellow text-black font-black shadow-brutal-sm' : 'bg-zinc-50 font-bold'}`}
-                      >
-                        <div className="text-xs uppercase">{g.name}</div>
-                        <div className="text-[10px] font-mono text-zinc-600">{g.rate}</div>
-                      </button>
-                    ))}
-                  </div>
-                </div>
-
-                <div className="space-y-2">
-                  <div>
-                    <label className="block text-xs font-black uppercase mb-1">Player Name:</label>
-                    <input
-                      type="text"
-                      placeholder="e.g. Hamza Malik"
-                      value={custName}
-                      onChange={e => setCustName(e.target.value)}
-                      className="w-full bg-zinc-50 border-2 border-black px-3 py-2 text-sm font-bold text-black"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-xs font-black uppercase mb-1">Mobile (Optional):</label>
-                    <input
-                      type="tel"
-                      placeholder="0300-1234567"
-                      value={custPhone}
-                      onChange={e => setCustPhone(e.target.value)}
-                      className="w-full bg-zinc-50 border-2 border-black px-3 py-2 text-sm font-mono text-black"
-                    />
-                  </div>
-
-                  {selectedGame !== 'century' && (
-                    <div>
-                      <label className="block text-xs font-black uppercase mb-1">Initial Frames:</label>
-                      <input
-                        type="number" min="1" max="100"
-                        value={rounds}
-                        onChange={e => setRounds(e.target.value)}
-                        className="w-full bg-zinc-50 border-2 border-black px-3 py-2 text-sm font-mono font-bold text-black"
-                      />
-                    </div>
-                  )}
-                </div>
-
-                <button
-                  type="submit"
-                  className="w-full bg-black hover:bg-zinc-800 text-brand-yellow font-black text-sm uppercase py-3 px-4 border-2 border-black shadow-brutal flex items-center justify-center gap-2"
-                >
-                  <span>🎱 Start Session Now</span>
-                  <span className="text-xs bg-brand-yellow text-black px-2 py-0.5 font-bold font-mono">
-                    {selectedGame === 'century' ? `Rs.${getRate(selectedGame)}/m` : `Rs.${getRate(selectedGame)}/f`}
-                  </span>
-                </button>
-
-              </form>
+              <div className="py-8 text-center text-gray-400 space-y-1">
+                <i className="fa-solid fa-circle-check text-2xl text-emerald-500"></i>
+                <p className="text-xs font-bold text-gray-600 uppercase">Ready for Players</p>
+                <p className="text-[10px] text-gray-400">Click below to start counter clock</p>
+              </div>
             )}
           </div>
 
+          {/* Action Button */}
+          <div className="pt-3 border-t-2 border-black">
+            {isOccupied ? (
+              <button
+                onClick={() => onEndSession(table, elapsed, calculateTotal())}
+                className="w-full btn-brutal py-2.5 bg-red-600 hover:bg-red-500 text-white text-xs font-black uppercase tracking-wider flex items-center justify-center gap-2"
+              >
+                <i className="fa-solid fa-flag-checkered"></i>
+                <span>END SESSION & PAY (Rs. {calculateTotal()})</span>
+              </button>
+            ) : (
+              <button
+                onClick={() => onStartSession(table)}
+                className="w-full btn-brutal py-2.5 bg-brand-yellow hover:bg-yellow-400 text-black text-xs font-black uppercase tracking-wider flex items-center justify-center gap-2"
+              >
+                <i className="fa-solid fa-play text-[10px]"></i>
+                <span>START MATCH</span>
+              </button>
+            )}
+          </div>
         </div>
       );
     }
 
-    // --- CHECKOUT MODAL BOX ---
-    function CheckoutModalBox({ data, onClose, onConfirm }) {
+    // ==========================================
+    // NEW SESSION MODAL
+    // ==========================================
+    function NewSessionModal({ table, tables, customers, onClose, onStart }) {
+      const [selTableId, setSelTableId] = useState(table ? table.id : 1);
+      const [gameType, setGameType] = useState('century');
+      const [playerName, setPlayerName] = useState('');
+      const [playerPhone, setPlayerPhone] = useState('');
+      const [rounds, setRounds] = useState(1);
+
+      const currTable = tables.find(t => t.id === Number(selTableId)) || tables[0];
+      const getRate = (gt) => {
+        if (gt === 'century') return currTable.rate_century || 10;
+        if (gt === '6ball') return currTable.rate_6ball || 130;
+        if (gt === '10ball') return currTable.rate_10ball || 150;
+        return currTable.rate_oneball || 120;
+      };
+
+      return (
+        <div className="fixed inset-0 z-50 bg-black/80 flex items-center justify-center p-4 backdrop-blur-sm">
+          <div className="card-brutal w-full max-w-lg bg-white p-6 shadow-brutal-xl">
+            <div className="flex justify-between items-center pb-3 border-b-2 border-black mb-4">
+              <h2 className="text-xl font-black uppercase tracking-tight">🎱 Start New Snooker Match</h2>
+              <button onClick={onClose} className="w-7 h-7 bg-black text-white font-bold">✕</button>
+            </div>
+
+            <form onSubmit={(e) => {
+              e.preventDefault();
+              onStart({
+                tableId: Number(selTableId),
+                customerName: playerName.trim() || 'Walk-in Player',
+                customerPhone: playerPhone.trim(),
+                gameType: gameType,
+                rateApplied: getRate(gameType),
+                rounds: gameType === 'century' ? 1 : Number(rounds) || 1
+              });
+            }} className="space-y-4">
+              
+              <div>
+                <label className="block text-xs font-black uppercase mb-1">Select Table</label>
+                <select
+                  value={selTableId}
+                  onChange={(e) => setSelTableId(e.target.value)}
+                  className="w-full input-brutal px-3 py-2 text-sm font-bold"
+                >
+                  {tables.map(t => (
+                    <option key={t.id} value={t.id} disabled={t.status === 'occupied'}>
+                      {t.name} ({t.type}) {t.status === 'occupied' ? '— OCCUPIED' : '— AVAILABLE'}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-xs font-black uppercase mb-1">Game Mode</label>
+                <div className="grid grid-cols-2 gap-2">
+                  {[
+                    { id: 'century', name: 'Century', sub: `Rs.${currTable.rate_century}/min` },
+                    { id: '6ball', name: '6 Ball', sub: `Rs.${currTable.rate_6ball}/frame` },
+                    { id: '10ball', name: '10 Ball', sub: `Rs.${currTable.rate_10ball}/frame` },
+                    { id: 'oneball', name: 'One Ball', sub: `Rs.${currTable.rate_oneball}/frame` },
+                  ].map(g => (
+                    <button
+                      type="button"
+                      key={g.id}
+                      onClick={() => setGameType(g.id)}
+                      className={`p-2.5 text-left border-2 border-black transition ${
+                        gameType === g.id ? 'bg-brand-yellow font-black shadow-brutal-sm' : 'bg-gray-50 font-bold'
+                      }`}
+                    >
+                      <div className="text-xs uppercase">{g.name}</div>
+                      <div className="text-[10px] font-mono text-gray-600">{g.sub}</div>
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-black uppercase mb-1">Player Name</label>
+                  <input
+                    type="text"
+                    placeholder="e.g. Bilal Ahmed"
+                    value={playerName}
+                    onChange={(e) => setPlayerName(e.target.value)}
+                    className="w-full input-brutal px-3 py-2 text-sm font-bold"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-black uppercase mb-1">Mobile (Optional)</label>
+                  <input
+                    type="tel"
+                    placeholder="0300-1234567"
+                    value={playerPhone}
+                    onChange={(e) => setPlayerPhone(e.target.value)}
+                    className="w-full input-brutal px-3 py-2 text-sm font-mono"
+                  />
+                </div>
+              </div>
+
+              {gameType !== 'century' && (
+                <div>
+                  <label className="block text-xs font-black uppercase mb-1">Initial Frames / Rounds</label>
+                  <input
+                    type="number" min="1" max="50"
+                    value={rounds}
+                    onChange={(e) => setRounds(e.target.value)}
+                    className="w-full input-brutal px-3 py-2 text-sm font-mono font-bold"
+                  />
+                </div>
+              )}
+
+              <div className="pt-2">
+                <button
+                  type="submit"
+                  className="w-full btn-brutal py-3 bg-brand-yellow hover:bg-yellow-400 text-black font-black uppercase text-sm tracking-wider flex items-center justify-center gap-2"
+                >
+                  <i className="fa-solid fa-play text-xs"></i>
+                  <span>Launch Session Now</span>
+                </button>
+              </div>
+
+            </form>
+          </div>
+        </div>
+      );
+    }
+
+    // ==========================================
+    // 2-STEP CONFIRMATION CHECKOUT MODAL
+    // ==========================================
+    function CheckoutModal({ data, onClose, onConfirm }) {
       const { table, elapsedSeconds, initialTotal } = data;
       const session = table.session;
       const [discount, setDiscount] = useState(0);
@@ -721,78 +1097,89 @@
 
       return (
         <div className="fixed inset-0 z-50 bg-black/80 flex items-center justify-center p-4 backdrop-blur-sm">
-          <div className="bg-white border-brutal-thick w-full max-w-lg shadow-brutal-lg">
+          <div className="card-brutal w-full max-w-lg bg-white shadow-brutal-xl">
             
-            <div className="bg-brand-yellow p-4 border-b-4 border-black flex items-center justify-between">
+            <div className="bg-brand-yellow p-4 border-b-2 border-black flex items-center justify-between">
               <div>
-                <h2 className="text-xl font-black uppercase text-black">💵 Cash Settlement & Checkout</h2>
-                <p className="text-xs font-bold text-zinc-800">{table.name} — Step 2 of 2 Confirmation</p>
+                <h2 className="text-xl font-black uppercase tracking-tight">💵 Settle Session Bill</h2>
+                <p className="text-xs font-bold text-gray-800">{table.name} — Step 2 Confirmation</p>
               </div>
-              <button onClick={onClose} className="w-8 h-8 bg-black text-white font-bold border-2 border-black">✕</button>
+              <button onClick={onClose} className="w-8 h-8 bg-black text-white font-bold border border-black">✕</button>
             </div>
 
-            <div className="p-6 space-y-4 font-sans">
+            <div className="p-6 space-y-4">
               
-              <div className="border-2 border-black bg-zinc-50 p-4 space-y-2 font-mono text-sm">
-                <div className="flex justify-between border-b border-zinc-300 pb-1.5 font-sans font-bold">
-                  <span className="text-zinc-600 uppercase text-xs">Customer:</span>
-                  <span>{session.customer_name || 'Walk-in'}</span>
+              {/* Receipt Breakup */}
+              <div className="bg-gray-50 border-2 border-black p-4 space-y-2 text-xs font-mono">
+                <div className="flex justify-between border-b border-gray-300 pb-1.5 font-sans font-bold">
+                  <span className="text-gray-500 uppercase">Customer:</span>
+                  <span className="text-gray-900">{session.customer_name}</span>
                 </div>
                 <div className="flex justify-between">
-                  <span className="text-zinc-600">Game Mode:</span>
-                  <span className="font-bold uppercase">{session.game_type}</span>
+                  <span className="text-gray-500">Gameplay:</span>
+                  <span className="font-bold uppercase text-gray-900">{session.game_type}</span>
                 </div>
                 <div className="flex justify-between">
-                  <span className="text-zinc-600">Usage:</span>
-                  <span>{session.game_type === 'century' ? `${Math.ceil(elapsedSeconds / 60)} mins` : `${session.rounds} frames`}</span>
+                  <span className="text-gray-500">Duration / Usage:</span>
+                  <span className="font-bold text-gray-900">
+                    {session.game_type === 'century' ? `${Math.ceil(elapsedSeconds / 60)} mins` : `${session.rounds} frames`}
+                  </span>
                 </div>
-                <div className="flex justify-between border-t border-zinc-300 pt-1.5">
-                  <span className="text-zinc-600">Subtotal:</span>
-                  <span>Rs. {subtotal.toLocaleString()}</span>
+                <div className="flex justify-between">
+                  <span className="text-gray-500">Rate:</span>
+                  <span className="font-bold text-gray-900">Rs. {session.rate_applied}</span>
+                </div>
+                <div className="flex justify-between border-t border-gray-300 pt-1.5">
+                  <span className="text-gray-500 font-bold">Subtotal:</span>
+                  <span className="font-bold text-gray-900">Rs. {subtotal.toLocaleString()}</span>
                 </div>
                 <div className="flex justify-between items-center">
-                  <span className="text-zinc-600 text-xs uppercase font-sans font-bold">Discount (Rs.):</span>
+                  <span className="text-gray-500 font-bold uppercase font-sans">Discount (Rs.):</span>
                   <input
                     type="number" min="0" max={subtotal}
                     value={discount}
-                    onChange={e => setDiscount(Math.max(0, parseInt(e.target.value) || 0))}
-                    className="w-24 bg-white border-2 border-black px-2 py-1 text-right font-bold text-sm"
+                    onChange={(e) => setDiscount(Math.max(0, parseInt(e.target.value) || 0))}
+                    className="w-24 input-brutal px-2 py-1 text-right font-bold"
                   />
                 </div>
-                <div className="flex justify-between items-center border-t-2 border-black pt-2 text-lg font-black font-sans">
+                <div className="flex justify-between items-center border-t-2 border-black pt-2 font-sans font-black text-lg">
                   <span>Grand Total:</span>
-                  <span className="text-2xl text-emerald-600">Rs. {finalTotal.toLocaleString()}</span>
+                  <span className="text-2xl font-mono text-emerald-600">Rs. {finalTotal.toLocaleString()}</span>
                 </div>
               </div>
 
-              <div className="bg-yellow-100 border-2 border-brand-yellow p-3 text-xs font-bold text-zinc-900 flex items-center gap-2">
-                <span>💵</span>
-                <span>PAYMENT METHOD: <strong>STRICT CASH ONLY</strong>. Collect physical cash notes.</span>
+              {/* Strict Cash Only Notice */}
+              <div className="bg-yellow-100 border-2 border-brand-yellow p-3 text-xs font-bold text-gray-900 flex items-center gap-2">
+                <i className="fa-solid fa-money-bill-wave text-base text-black"></i>
+                <span>PAYMENT METHOD: <strong>STRICT CASH ONLY</strong>. Please collect physical cash into register.</span>
               </div>
 
               <div>
-                <label className="block text-xs font-black uppercase mb-1">Notes (Optional):</label>
+                <label className="block text-xs font-black uppercase mb-1">Notes (Optional)</label>
                 <input
                   type="text"
                   placeholder="e.g. Paid in full"
                   value={notes}
-                  onChange={e => setNotes(e.target.value)}
-                  className="w-full bg-zinc-50 border-2 border-black px-3 py-2 text-xs font-bold"
+                  onChange={(e) => setNotes(e.target.value)}
+                  className="w-full input-brutal px-3 py-2 text-xs font-bold"
                 />
               </div>
 
-              <div className="bg-red-50 border-2 border-red-500 p-3 flex items-start gap-3">
+              {/* Strict Concurrency Confirmation Checkbox */}
+              <div className="bg-red-50 border-2 border-red-500 p-3 flex items-start gap-2.5">
                 <input
-                  type="checkbox" id="chkCash"
+                  type="checkbox"
+                  id="confirmCashChk"
                   checked={confirmed}
-                  onChange={e => setConfirmed(e.target.checked)}
+                  onChange={(e) => setConfirmed(e.target.checked)}
                   className="w-5 h-5 mt-0.5 accent-black cursor-pointer"
                 />
-                <label htmlFor="chkCash" className="text-xs font-black uppercase text-red-900 cursor-pointer select-none">
-                  I CONFIRM THAT CASH OF RS. {finalTotal} HAS BEEN PHYSICALLY RECEIVED IN REGISTER. FREE TABLE.
+                <label htmlFor="confirmCashChk" className="text-xs font-black uppercase text-red-950 cursor-pointer select-none leading-tight">
+                  I CONFIRM THAT CASH OF RS. {finalTotal} HAS BEEN PHYSICALLY RECEIVED. FREE UP THIS TABLE.
                 </label>
               </div>
 
+              {/* Buttons */}
               <div className="grid grid-cols-2 gap-3 pt-2">
                 <button
                   type="button"
@@ -802,7 +1189,9 @@
                     gameType: session.game_type, rateApplied: session.rate_applied, rounds: session.rounds, durationSeconds: elapsedSeconds,
                     subtotal: subtotal, discount: discount, totalPrice: finalTotal, notes: notes, shouldPrint: false
                   })}
-                  className={`py-3 px-4 font-black text-xs uppercase border-2 border-black shadow-brutal ${confirmed ? 'bg-black text-white hover:bg-zinc-800' : 'bg-zinc-300 text-zinc-500 cursor-not-allowed border-zinc-400'}`}
+                  className={`btn-brutal py-3 text-xs uppercase font-black tracking-wider ${
+                    confirmed ? 'bg-black text-white hover:bg-gray-800' : 'bg-gray-300 text-gray-500 cursor-not-allowed border-gray-400'
+                  }`}
                 >
                   ✅ Settle Cash Only
                 </button>
@@ -815,14 +1204,17 @@
                     gameType: session.game_type, rateApplied: session.rate_applied, rounds: session.rounds, durationSeconds: elapsedSeconds,
                     subtotal: subtotal, discount: discount, totalPrice: finalTotal, notes: notes, shouldPrint: true
                   })}
-                  className={`py-3 px-4 font-black text-xs uppercase border-2 border-black shadow-brutal flex items-center justify-center gap-1 ${confirmed ? 'bg-brand-yellow text-black hover:bg-yellow-400' : 'bg-zinc-300 text-zinc-500 cursor-not-allowed border-zinc-400'}`}
+                  className={`btn-brutal py-3 text-xs uppercase font-black tracking-wider flex items-center justify-center gap-1.5 ${
+                    confirmed ? 'bg-brand-yellow text-black hover:bg-yellow-400' : 'bg-gray-300 text-gray-500 cursor-not-allowed border-gray-400'
+                  }`}
                 >
-                  🖨️ Settle & Print Slip
+                  <i className="fa-solid fa-print"></i>
+                  <span>Settle & Print Slip</span>
                 </button>
               </div>
 
-              <button onClick={onClose} className="w-full text-center text-xs font-bold text-zinc-500 hover:text-black uppercase underline">
-                ← Cancel & Return to Match
+              <button onClick={onClose} className="w-full text-center text-xs font-bold text-gray-500 hover:text-black uppercase underline">
+                ← Return & Continue Active Session
               </button>
 
             </div>
@@ -831,32 +1223,34 @@
       );
     }
 
-    // --- THERMAL RECEIPT BOX ---
-    function ReceiptBox({ data, settings, onClose }) {
+    // ==========================================
+    // THERMAL RECEIPT SLIP MODAL
+    // ==========================================
+    function ThermalReceiptModal({ data, settings, onClose }) {
       const now = new Date().toLocaleString('en-US', { timeZone: 'Asia/Karachi', dateStyle: 'medium', timeStyle: 'short' });
 
       return (
         <div className="fixed inset-0 z-50 bg-black/80 flex items-center justify-center p-4 backdrop-blur-sm">
-          <div className="bg-white border-brutal-thick w-full max-w-sm shadow-brutal-lg p-6">
+          <div className="card-brutal w-full max-w-sm bg-white p-6 shadow-brutal-xl">
             
-            <div id="thermal-receipt-area" className="bg-white text-black font-mono text-xs p-4 border border-zinc-300">
+            <div id="thermal-receipt-area" className="bg-white text-black font-mono text-xs p-4 border border-gray-300">
               <div className="text-center space-y-1 pb-3 border-b-2 border-dashed border-black">
-                <div className="text-base font-black uppercase tracking-wider">{settings.club_name}</div>
-                <div className="text-[11px] text-zinc-600">{settings.address}</div>
-                <div className="text-[11px] text-zinc-600">Tel: {settings.phone}</div>
+                <div className="text-base font-black uppercase">{settings.club_name}</div>
+                <div className="text-[11px] text-gray-600">{settings.address}</div>
+                <div className="text-[11px] text-gray-600">Tel: {settings.phone}</div>
                 <div className="text-[11px] font-bold mt-1 text-black">*** OFFICIAL CASH RECEIPT ***</div>
               </div>
 
-              <div className="py-2 border-b border-dashed border-black space-y-1 text-[11px]">
+              <div className="py-2.5 border-b border-dashed border-black space-y-1 text-[11px]">
                 <div className="flex justify-between"><span>Receipt #:</span><span className="font-bold">{data.session_code}</span></div>
-                <div className="flex justify-between"><span>Date/Time:</span><span>{now} (PKT)</span></div>
+                <div className="flex justify-between"><span>Date:</span><span>{now} (PKT)</span></div>
                 <div className="flex justify-between"><span>Table:</span><span className="font-bold">{data.table_name}</span></div>
-                <div className="flex justify-between"><span>Customer:</span><span className="font-bold">{data.customer_name || 'Walk-in'}</span></div>
+                <div className="flex justify-between"><span>Customer:</span><span className="font-bold">{data.customer_name}</span></div>
                 <div className="flex justify-between"><span>Operator:</span><span>{data.operator}</span></div>
               </div>
 
-              <div className="py-2 border-b-2 border-dashed border-black space-y-1 text-[11px]">
-                <div className="flex justify-between"><span>Game:</span><span className="font-bold uppercase">{data.game_type}</span></div>
+              <div className="py-2.5 border-b-2 border-dashed border-black space-y-1 text-[11px]">
+                <div className="flex justify-between"><span>Gameplay:</span><span className="font-bold uppercase">{data.game_type}</span></div>
                 {data.game_type === 'century' ? (
                   <div className="flex justify-between"><span>Duration:</span><span>{Math.ceil(data.duration_seconds / 60)} Mins @ Rs.{data.rate_applied}/m</span></div>
                 ) : (
@@ -865,26 +1259,27 @@
                 {data.discount > 0 && <div className="flex justify-between text-red-600"><span>Discount:</span><span>- Rs. {data.discount}</span></div>}
                 
                 <div className="flex justify-between text-sm font-black pt-2 border-t border-black">
-                  <span>TOTAL CASH PAID:</span>
+                  <span>TOTAL PAID:</span>
                   <span>Rs. {Number(data.total_price).toLocaleString()}</span>
                 </div>
-                <div className="text-[10px] text-zinc-500 uppercase text-center mt-1">[ STATUS: PAID (CASH ONLY) ]</div>
+                <div className="text-[10px] text-gray-500 uppercase text-center mt-1">[ STATUS: CASH RECEIVED ]</div>
               </div>
 
               <div className="text-center pt-3 text-[10px]">
-                <p className="font-bold">Thank you for playing with us!</p>
+                <p className="font-bold">Thank you for visiting us!</p>
               </div>
             </div>
 
             <div className="mt-4 space-y-2 print:hidden">
               <button
                 onClick={() => window.print()}
-                className="w-full bg-brand-yellow hover:bg-yellow-400 text-black font-black text-sm uppercase py-3 border-2 border-black shadow-brutal"
+                className="w-full btn-brutal py-3 bg-brand-yellow hover:bg-yellow-400 text-black font-black uppercase text-xs tracking-wider flex items-center justify-center gap-2"
               >
-                🖨️ Print Thermal Slip
+                <i className="fa-solid fa-print"></i>
+                <span>Print Thermal Slip</span>
               </button>
-              <button onClick={onClose} className="w-full bg-black text-white font-bold text-xs uppercase py-2 border-2 border-black">
-                Close Dialog
+              <button onClick={onClose} className="w-full btn-brutal py-2 bg-black text-white font-bold text-xs uppercase">
+                Close
               </button>
             </div>
 
@@ -893,8 +1288,66 @@
       );
     }
 
-    // --- PLAYERS VIEW ---
-    function PlayersView({ customers, onAdd }) {
+    // ==========================================
+    // SESSIONS HISTORY VIEW
+    // ==========================================
+    function SessionsHistoryView({ sessions }) {
+      return (
+        <div className="space-y-6">
+          <div className="flex items-center justify-between pb-2 border-b-2 border-black">
+            <div>
+              <h1 className="text-2xl font-black uppercase tracking-tight text-gray-950">Sessions History</h1>
+              <p className="text-xs font-bold text-gray-600 uppercase tracking-widest mt-0.5">All settled counter sessions</p>
+            </div>
+            <span className="badge-brutal px-3 py-1 bg-black text-white font-mono">{sessions.length} Recorded</span>
+          </div>
+
+          <div className="card-brutal overflow-x-auto bg-white">
+            <table className="w-full text-left border-collapse text-xs">
+              <thead>
+                <tr className="bg-gray-100 text-gray-900 font-black uppercase border-b-2 border-black">
+                  <th className="p-3">Session Code</th>
+                  <th className="p-3">Table</th>
+                  <th className="p-3">Player</th>
+                  <th className="p-3">Game</th>
+                  <th className="p-3">Usage</th>
+                  <th className="p-3">Total (Rs.)</th>
+                  <th className="p-3">Status</th>
+                  <th className="p-3">Date / Operator</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-gray-200 font-bold">
+                {sessions.length === 0 ? (
+                  <tr>
+                    <td colSpan="8" className="p-8 text-center text-gray-400 font-normal">
+                      No sessions recorded yet. Start a match on any vacant table to begin.
+                    </td>
+                  </tr>
+                ) : (
+                  sessions.map(s => (
+                    <tr key={s.id} className="hover:bg-yellow-50">
+                      <td className="p-3 font-mono text-gray-500">{s.session_code}</td>
+                      <td className="p-3 font-black text-gray-950">{s.table_name}</td>
+                      <td className="p-3">{s.customer_name}</td>
+                      <td className="p-3"><span className="badge-brutal px-1.5 py-0.5 bg-yellow-200 text-black">{s.game_type}</span></td>
+                      <td className="p-3 font-mono">{s.game_type === 'century' ? `${Math.ceil(s.duration_seconds / 60)} mins` : `${s.rounds} frames`}</td>
+                      <td className="p-3 font-mono font-black text-emerald-600 text-sm">Rs. {Number(s.total_price).toLocaleString()}</td>
+                      <td className="p-3"><span className="badge-brutal px-1.5 py-0.5 bg-emerald-100 text-emerald-800 border-emerald-600">PAID (CASH)</span></td>
+                      <td className="p-3 text-gray-500 text-[11px]">{s.start_time} • {s.operator}</td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      );
+    }
+
+    // ==========================================
+    // CUSTOMERS DIRECTORY VIEW
+    // ==========================================
+    function CustomersDirectoryView({ customers, onAdd }) {
       const [search, setSearch] = useState('');
       const [showAdd, setShowAdd] = useState(false);
       const [name, setName] = useState('');
@@ -905,64 +1358,143 @@
 
       return (
         <div className="space-y-6">
-          <div className="bg-white border-brutal-thick p-5 shadow-brutal flex flex-col sm:flex-row justify-between items-center gap-4">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 pb-2 border-b-2 border-black">
             <div>
-              <h1 className="text-2xl font-black uppercase text-black">👥 Players & Customers Directory</h1>
-              <p className="text-xs text-zinc-600 font-bold">Total Players: {customers.length}</p>
+              <h1 className="text-2xl font-black uppercase tracking-tight text-gray-950">Customer Directory</h1>
+              <p className="text-xs font-bold text-gray-600 uppercase tracking-widest mt-0.5">Player Profiles & Match History</p>
             </div>
-            <div className="flex gap-2 w-full sm:w-auto">
+            <div className="flex gap-2">
               <input
-                type="text" placeholder="🔍 Search name or mobile..."
-                value={search} onChange={e => setSearch(e.target.value)}
-                className="bg-zinc-50 border-2 border-black px-3 py-2 text-sm font-bold w-full sm:w-64"
+                type="text" placeholder="Search customer..."
+                value={search} onChange={(e) => setSearch(e.target.value)}
+                className="input-brutal px-3 py-1.5 text-xs font-bold w-48 sm:w-60"
               />
               <button
                 onClick={() => setShowAdd(!showAdd)}
-                className="bg-brand-yellow text-black font-black text-xs uppercase px-4 py-2 border-2 border-black shadow-brutal-sm whitespace-nowrap"
+                className="btn-brutal px-4 py-1.5 bg-brand-yellow text-xs uppercase font-black"
               >
-                {showAdd ? '✕ Close' : '+ Add Player'}
+                {showAdd ? '✕ Close' : '+ New Customer'}
               </button>
             </div>
           </div>
 
           {showAdd && (
-            <form onSubmit={e => {
+            <form onSubmit={(e) => {
               e.preventDefault();
               if (!name.trim()) return;
               onAdd({ id: Date.now(), name: name.trim(), phone: phone.trim(), notes: notes.trim(), total_visits: 1, total_spent: 0 });
               setName(''); setPhone(''); setNotes(''); setShowAdd(false);
-            }} className="bg-zinc-100 border-brutal-thick p-5 shadow-brutal space-y-4">
-              <h2 className="text-sm font-black uppercase">Register New Player</h2>
+            }} className="card-brutal p-4 bg-gray-50 space-y-3">
+              <h3 className="text-xs font-black uppercase">Add New Customer</h3>
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                <input required type="text" placeholder="Full Name *" value={name} onChange={e => setName(e.target.value)} className="bg-white border-2 border-black px-3 py-2 text-sm font-bold" />
-                <input type="tel" placeholder="Mobile 0300-1234567" value={phone} onChange={e => setPhone(e.target.value)} className="bg-white border-2 border-black px-3 py-2 text-sm font-mono" />
-                <input type="text" placeholder="Notes (e.g. Regular)" value={notes} onChange={e => setNotes(e.target.value)} className="bg-white border-2 border-black px-3 py-2 text-sm" />
+                <input required type="text" placeholder="Customer Name *" value={name} onChange={e => setName(e.target.value)} className="input-brutal px-3 py-2 text-xs font-bold" />
+                <input type="tel" placeholder="Mobile Phone" value={phone} onChange={e => setPhone(e.target.value)} className="input-brutal px-3 py-2 text-xs font-mono" />
+                <input type="text" placeholder="Notes (e.g. Regular)" value={notes} onChange={e => setNotes(e.target.value)} className="input-brutal px-3 py-2 text-xs" />
               </div>
-              <button type="submit" className="bg-black text-brand-yellow font-black text-xs uppercase px-6 py-2 border-2 border-black">Save Player</button>
+              <button type="submit" className="btn-brutal px-5 py-2 bg-black text-brand-yellow font-black text-xs uppercase">Save Profile</button>
             </form>
           )}
 
-          <div className="bg-white border-brutal-thick shadow-brutal overflow-x-auto">
-            <table className="w-full text-left border-collapse">
+          <div className="card-brutal overflow-x-auto bg-white">
+            <table className="w-full text-left border-collapse text-xs">
               <thead>
-                <tr className="bg-black text-brand-yellow text-xs font-black uppercase border-b-2 border-black">
-                  <th className="p-3.5">ID</th>
-                  <th className="p-3.5">Player Name</th>
-                  <th className="p-3.5">Mobile Phone</th>
-                  <th className="p-3.5">Visits</th>
-                  <th className="p-3.5">Total Spent</th>
-                  <th className="p-3.5">Notes</th>
+                <tr className="bg-gray-100 text-gray-900 font-black uppercase border-b-2 border-black">
+                  <th className="p-3">ID</th>
+                  <th className="p-3">Player Name</th>
+                  <th className="p-3">Phone</th>
+                  <th className="p-3">Visits</th>
+                  <th className="p-3">Total Spend</th>
+                  <th className="p-3">Notes</th>
                 </tr>
               </thead>
-              <tbody className="divide-y-2 divide-zinc-200 text-sm font-bold">
-                {filtered.map(c => (
-                  <tr key={c.id} className="hover:bg-yellow-50">
-                    <td className="p-3.5 font-mono text-zinc-500">#{c.id}</td>
-                    <td className="p-3.5 font-black">{c.name}</td>
-                    <td className="p-3.5 font-mono">{c.phone || '—'}</td>
-                    <td className="p-3.5"><span className="bg-zinc-100 border border-black px-2 py-0.5 font-mono text-xs">{c.total_visits || 0} visits</span></td>
-                    <td className="p-3.5 font-mono font-black text-emerald-600">Rs. {(c.total_spent || 0).toLocaleString()}</td>
-                    <td className="p-3.5 text-xs text-zinc-600 font-normal">{c.notes || '—'}</td>
+              <tbody className="divide-y divide-gray-200 font-bold">
+                {filtered.length === 0 ? (
+                  <tr>
+                    <td colSpan="6" className="p-8 text-center text-gray-400 font-normal">
+                      No customer records. Players will automatically appear here as they play matches.
+                    </td>
+                  </tr>
+                ) : (
+                  filtered.map(c => (
+                    <tr key={c.id} className="hover:bg-yellow-50">
+                      <td className="p-3 font-mono text-gray-400">#{c.id}</td>
+                      <td className="p-3 font-black text-gray-950">{c.name}</td>
+                      <td className="p-3 font-mono text-gray-600">{c.phone || '—'}</td>
+                      <td className="p-3"><span className="badge-brutal px-2 py-0.5 bg-gray-100">{c.total_visits || 1} visits</span></td>
+                      <td className="p-3 font-mono font-black text-emerald-600">Rs. {(c.total_spent || 0).toLocaleString()}</td>
+                      <td className="p-3 text-gray-500 font-normal">{c.notes || '—'}</td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      );
+    }
+
+    // ==========================================
+    // TABLES & RATES VIEW
+    // ==========================================
+    function TablesRatesView({ tables, onUpdateRate }) {
+      return (
+        <div className="space-y-6">
+          <div className="pb-2 border-b-2 border-black">
+            <h1 className="text-2xl font-black uppercase tracking-tight text-gray-950">Tables & Rate Management</h1>
+            <p className="text-xs font-bold text-gray-600 uppercase tracking-widest mt-0.5">Customize Pakistani rates per table</p>
+          </div>
+
+          <div className="card-brutal overflow-x-auto bg-white">
+            <table className="w-full text-left border-collapse text-xs">
+              <thead>
+                <tr className="bg-gray-100 text-gray-900 font-black uppercase border-b-2 border-black">
+                  <th className="p-3.5">Table</th>
+                  <th className="p-3.5">Type</th>
+                  <th className="p-3.5">Century (Rs/min)</th>
+                  <th className="p-3.5">6 Ball (Rs)</th>
+                  <th className="p-3.5">10 Ball (Rs)</th>
+                  <th className="p-3.5">One Ball (Rs)</th>
+                  <th className="p-3.5">Status</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-gray-200 font-bold">
+                {tables.map(t => (
+                  <tr key={t.id} className="hover:bg-yellow-50">
+                    <td className="p-3.5 font-black text-gray-950">{t.name}</td>
+                    <td className="p-3.5"><span className="badge-brutal px-2 py-0.5 bg-gray-100">{t.type}</span></td>
+                    <td className="p-3.5">
+                      <input
+                        type="number" value={t.rate_century}
+                        onChange={(e) => onUpdateRate(t.id, 'rate_century', Number(e.target.value))}
+                        className="w-20 input-brutal px-2 py-1 font-mono font-bold"
+                      />
+                    </td>
+                    <td className="p-3.5">
+                      <input
+                        type="number" value={t.rate_6ball}
+                        onChange={(e) => onUpdateRate(t.id, 'rate_6ball', Number(e.target.value))}
+                        className="w-20 input-brutal px-2 py-1 font-mono font-bold"
+                      />
+                    </td>
+                    <td className="p-3.5">
+                      <input
+                        type="number" value={t.rate_10ball}
+                        onChange={(e) => onUpdateRate(t.id, 'rate_10ball', Number(e.target.value))}
+                        className="w-20 input-brutal px-2 py-1 font-mono font-bold"
+                      />
+                    </td>
+                    <td className="p-3.5">
+                      <input
+                        type="number" value={t.rate_oneball}
+                        onChange={(e) => onUpdateRate(t.id, 'rate_oneball', Number(e.target.value))}
+                        className="w-20 input-brutal px-2 py-1 font-mono font-bold"
+                      />
+                    </td>
+                    <td className="p-3.5">
+                      <span className={`badge-brutal px-2 py-0.5 ${t.status === 'occupied' ? 'bg-red-500 text-white' : 'bg-emerald-400 text-black'}`}>
+                        {t.status}
+                      </span>
+                    </td>
                   </tr>
                 ))}
               </tbody>
@@ -972,91 +1504,183 @@
       );
     }
 
-    // --- REPORTS VIEW ---
-    function LedgerReportsView({ sessions, settings }) {
-      const [filter, setFilter] = useState('all');
-      const filtered = sessions.filter(s => filter === 'all' || s.game_type === filter);
-      const totalCash = filtered.reduce((sum, s) => sum + (Number(s.total_price) || 0), 0);
-      const centuryMins = filtered.filter(s => s.game_type === 'century').reduce((sum, s) => sum + Math.ceil((Number(s.duration_seconds) || 0) / 60), 0);
-      const framesCount = filtered.filter(s => s.game_type !== 'century').reduce((sum, s) => sum + (Number(s.rounds) || 0), 0);
-
+    // ==========================================
+    // REPORTS & SHIFT LEDGER VIEW
+    // ==========================================
+    function ReportsLedgerView({ sessions, settings }) {
+      const totalCash = sessions.reduce((sum, s) => sum + (Number(s.total_price) || 0), 0);
       const downloadCSV = () => {
-        const rows = [['Code', 'Table', 'Customer', 'Game', 'Amount (Rs)', 'Date']];
-        filtered.forEach(s => rows.push([s.session_code, s.table_name, s.customer_name || 'Walk-in', s.game_type, s.total_price, s.start_time]));
+        const rows = [['Receipt Code', 'Table', 'Customer', 'Game Type', 'Amount (Rs)', 'Status', 'Date']];
+        sessions.forEach(s => rows.push([s.session_code, s.table_name, s.customer_name, s.game_type, s.total_price, s.payment_status, s.start_time]));
         const csv = 'data:text/csv;charset=utf-8,' + rows.map(e => e.join(',')).join('\n');
         const a = document.createElement('a');
         a.href = encodeURI(csv);
-        a.download = `snooker_report_${Date.now()}.csv`;
+        a.download = `snooker_shift_report_${Date.now()}.csv`;
         a.click();
       };
 
       return (
         <div className="space-y-6">
-          <div className="bg-white border-brutal-thick p-5 shadow-brutal flex flex-col sm:flex-row justify-between items-center gap-4">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 pb-2 border-b-2 border-black">
             <div>
-              <h1 className="text-2xl font-black uppercase text-black">📊 Financial Reports & Shift Ledger</h1>
-              <p className="text-xs text-zinc-600 font-bold">Strict Cash Register Accounting</p>
+              <h1 className="text-2xl font-black uppercase tracking-tight text-gray-950">Shift Reports & Audit</h1>
+              <p className="text-xs font-bold text-gray-600 uppercase tracking-widest mt-0.5">Cash register reconciliation</p>
             </div>
-            <div className="flex gap-3">
-              <select value={filter} onChange={e => setFilter(e.target.value)} className="bg-zinc-50 border-2 border-black px-3 py-2 text-xs font-bold uppercase">
-                <option value="all">All Game Modes</option>
-                <option value="century">Century</option>
-                <option value="6ball">6 Ball</option>
-                <option value="10ball">10 Ball</option>
-                <option value="oneball">One Ball</option>
+            <button
+              onClick={downloadCSV}
+              className="btn-brutal px-4 py-2 bg-brand-yellow text-black font-black text-xs uppercase flex items-center gap-1.5"
+            >
+              <i className="fa-solid fa-download"></i>
+              <span>Export CSV</span>
+            </button>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+            <div className="card-brutal p-4 bg-brand-yellow">
+              <span className="text-[11px] font-black uppercase text-black">Total Cash Collected</span>
+              <p className="text-3xl font-black font-mono mt-1 text-black">Rs. {totalCash.toLocaleString()}</p>
+              <span className="text-[10px] font-bold text-gray-800 uppercase">[ Cash In Register ]</span>
+            </div>
+            <div className="card-brutal p-4 bg-white">
+              <span className="text-[11px] font-black uppercase text-gray-500">Matches Completed</span>
+              <p className="text-3xl font-black font-mono mt-1 text-gray-950">{sessions.length}</p>
+              <span className="text-[10px] font-bold text-gray-400 uppercase">Paid Sessions</span>
+            </div>
+            <div className="card-brutal p-4 bg-white">
+              <span className="text-[11px] font-black uppercase text-gray-500">Average Per Match</span>
+              <p className="text-3xl font-black font-mono mt-1 text-gray-950">
+                Rs. {sessions.length > 0 ? Math.round(totalCash / sessions.length) : 0}
+              </p>
+              <span className="text-[10px] font-bold text-gray-400 uppercase">Per Session</span>
+            </div>
+          </div>
+        </div>
+      );
+    }
+
+    // ==========================================
+    // CLUB SETTINGS VIEW (ADMIN ONLY)
+    // ==========================================
+    function ClubSettingsView({ settings, onSave }) {
+      const [form, setForm] = useState({ ...settings });
+
+      return (
+        <div className="space-y-6">
+          <div className="pb-2 border-b-2 border-black">
+            <h1 className="text-2xl font-black uppercase tracking-tight text-gray-950">System Settings</h1>
+            <p className="text-xs font-bold text-gray-600 uppercase tracking-widest mt-0.5">Club branding and global defaults</p>
+          </div>
+
+          <form onSubmit={(e) => { e.preventDefault(); onSave(form); }} className="space-y-6">
+            <div className="card-brutal p-6 bg-white space-y-4">
+              <h2 className="text-sm font-black uppercase border-b-2 border-black pb-2">Branding & Contact</h2>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-xs font-black uppercase mb-1">Club Name</label>
+                  <input type="text" value={form.club_name} onChange={e => setForm({ ...form, club_name: e.target.value })} className="w-full input-brutal px-3 py-2 text-sm font-bold" />
+                </div>
+                <div>
+                  <label className="block text-xs font-black uppercase mb-1">Contact Phone</label>
+                  <input type="text" value={form.phone} onChange={e => setForm({ ...form, phone: e.target.value })} className="w-full input-brutal px-3 py-2 text-sm font-mono" />
+                </div>
+                <div className="sm:col-span-2">
+                  <label className="block text-xs font-black uppercase mb-1">Address</label>
+                  <input type="text" value={form.address} onChange={e => setForm({ ...form, address: e.target.value })} className="w-full input-brutal px-3 py-2 text-sm" />
+                </div>
+              </div>
+            </div>
+
+            <div className="card-brutal p-6 bg-white space-y-4">
+              <h2 className="text-sm font-black uppercase border-b-2 border-black pb-2">Default Rates (PKR)</h2>
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+                <div>
+                  <label className="block text-xs font-black uppercase mb-1">Century (Rs/min)</label>
+                  <input type="number" value={form.default_century} onChange={e => setForm({ ...form, default_century: Number(e.target.value) })} className="w-full input-brutal px-3 py-2 text-sm font-mono font-bold" />
+                </div>
+                <div>
+                  <label className="block text-xs font-black uppercase mb-1">6 Ball (Rs)</label>
+                  <input type="number" value={form.default_6ball} onChange={e => setForm({ ...form, default_6ball: Number(e.target.value) })} className="w-full input-brutal px-3 py-2 text-sm font-mono font-bold" />
+                </div>
+                <div>
+                  <label className="block text-xs font-black uppercase mb-1">10 Ball (Rs)</label>
+                  <input type="number" value={form.default_10ball} onChange={e => setForm({ ...form, default_10ball: Number(e.target.value) })} className="w-full input-brutal px-3 py-2 text-sm font-mono font-bold" />
+                </div>
+                <div>
+                  <label className="block text-xs font-black uppercase mb-1">One Ball (Rs)</label>
+                  <input type="number" value={form.default_oneball} onChange={e => setForm({ ...form, default_oneball: Number(e.target.value) })} className="w-full input-brutal px-3 py-2 text-sm font-mono font-bold" />
+                </div>
+              </div>
+              <button type="submit" className="btn-brutal px-6 py-2.5 bg-brand-yellow font-black text-xs uppercase">Save Settings</button>
+            </div>
+          </form>
+        </div>
+      );
+    }
+
+    // ==========================================
+    // USERS & STAFF MANAGER VIEW (ADMIN ONLY)
+    // ==========================================
+    function UsersManagerView({ users, onAddUser, onToggleStatus }) {
+      const [uName, setUName] = useState('');
+      const [uUser, setUUser] = useState('');
+      const [uPass, setUPass] = useState('');
+      const [uRole, setURole] = useState('staff');
+
+      return (
+        <div className="space-y-6">
+          <div className="pb-2 border-b-2 border-black">
+            <h1 className="text-2xl font-black uppercase tracking-tight text-gray-950">Staff & Users Management</h1>
+            <p className="text-xs font-bold text-gray-600 uppercase tracking-widest mt-0.5">Manage operator accounts and permissions</p>
+          </div>
+
+          <form onSubmit={(e) => {
+            e.preventDefault();
+            if (!uUser.trim()) return;
+            onAddUser({ id: Date.now(), name: uName.trim() || uUser.trim(), username: uUser.trim(), password: uPass.trim() || 'password123', role: uRole, is_active: true });
+            setUName(''); setUUser(''); setUPass('');
+          }} className="card-brutal p-5 bg-white space-y-3">
+            <h3 className="text-xs font-black uppercase">Create New Staff User</h3>
+            <div className="grid grid-cols-1 sm:grid-cols-4 gap-3">
+              <input required type="text" placeholder="Full Name" value={uName} onChange={e => setUName(e.target.value)} className="input-brutal px-3 py-2 text-xs font-bold" />
+              <input required type="text" placeholder="Username" value={uUser} onChange={e => setUUser(e.target.value)} className="input-brutal px-3 py-2 text-xs font-bold" />
+              <input required type="password" placeholder="Password" value={uPass} onChange={e => setUPass(e.target.value)} className="input-brutal px-3 py-2 text-xs" />
+              <select value={uRole} onChange={e => setURole(e.target.value)} className="input-brutal px-3 py-2 text-xs font-bold">
+                <option value="staff">Staff</option>
+                <option value="admin">Admin</option>
               </select>
-              <button onClick={downloadCSV} className="bg-brand-yellow text-black font-black text-xs uppercase px-4 py-2 border-2 border-black shadow-brutal-sm">
-                📥 Export CSV
-              </button>
             </div>
-          </div>
+            <button type="submit" className="btn-brutal px-6 py-2 bg-black text-brand-yellow font-black text-xs uppercase">Add Staff</button>
+          </form>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-            <div className="bg-brand-yellow border-brutal-thick p-4 shadow-brutal">
-              <div className="text-xs uppercase font-black">Total Cash Collected</div>
-              <div className="text-3xl font-black font-mono mt-1">Rs. {totalCash.toLocaleString()}</div>
-              <div className="text-[10px] font-bold mt-1 uppercase">[ Safe Register Total ]</div>
-            </div>
-            <div className="bg-white border-brutal-thick p-4 shadow-brutal">
-              <div className="text-xs uppercase font-black text-zinc-600">Total Matches</div>
-              <div className="text-3xl font-black font-mono mt-1">{filtered.length}</div>
-              <div className="text-[10px] font-bold text-zinc-500 mt-1 uppercase">Settled Matches</div>
-            </div>
-            <div className="bg-white border-brutal-thick p-4 shadow-brutal">
-              <div className="text-xs uppercase font-black text-zinc-600">Century Minutes</div>
-              <div className="text-3xl font-black font-mono mt-1">{centuryMins} mins</div>
-              <div className="text-[10px] font-bold text-zinc-500 mt-1 uppercase">Time Billed</div>
-            </div>
-            <div className="bg-white border-brutal-thick p-4 shadow-brutal">
-              <div className="text-xs uppercase font-black text-zinc-600">Frames Played</div>
-              <div className="text-3xl font-black font-mono mt-1">{framesCount} frames</div>
-              <div className="text-[10px] font-bold text-zinc-500 mt-1 uppercase">6B / 10B / 1B</div>
-            </div>
-          </div>
-
-          <div className="bg-white border-brutal-thick shadow-brutal overflow-x-auto">
-            <table className="w-full text-left border-collapse">
+          <div className="card-brutal overflow-x-auto bg-white">
+            <table className="w-full text-left border-collapse text-xs">
               <thead>
-                <tr className="bg-zinc-100 text-xs font-black uppercase border-b-2 border-black">
-                  <th className="p-3">Session Code</th>
-                  <th className="p-3">Table</th>
-                  <th className="p-3">Player</th>
-                  <th className="p-3">Game</th>
-                  <th className="p-3">Amount (Rs.)</th>
+                <tr className="bg-gray-100 font-black uppercase border-b-2 border-black">
+                  <th className="p-3">Name</th>
+                  <th className="p-3">Username</th>
+                  <th className="p-3">Role</th>
                   <th className="p-3">Status</th>
-                  <th className="p-3">Operator</th>
+                  <th className="p-3">Action</th>
                 </tr>
               </thead>
-              <tbody className="divide-y-2 divide-zinc-200 text-xs font-bold">
-                {filtered.map(s => (
-                  <tr key={s.id} className="hover:bg-yellow-50">
-                    <td className="p-3 font-mono text-zinc-500">{s.session_code}</td>
-                    <td className="p-3 font-black">{s.table_name}</td>
-                    <td className="p-3">{s.customer_name || 'Walk-in'}</td>
-                    <td className="p-3"><span className="bg-black text-brand-yellow px-2 py-0.5 uppercase">{s.game_type}</span></td>
-                    <td className="p-3 font-mono font-black text-sm text-emerald-600">Rs. {Number(s.total_price).toLocaleString()}</td>
-                    <td className="p-3"><span className="bg-emerald-100 text-emerald-800 border border-emerald-500 px-2 py-0.5 text-[10px] font-black uppercase">PAID (CASH)</span></td>
-                    <td className="p-3 text-zinc-600">{s.operator || 'Staff'}</td>
+              <tbody className="divide-y divide-gray-200 font-bold">
+                {users.map(u => (
+                  <tr key={u.id}>
+                    <td className="p-3 font-black">{u.name}</td>
+                    <td className="p-3 font-mono">{u.username}</td>
+                    <td className="p-3"><span className="badge-brutal px-2 py-0.5 bg-yellow-200">{u.role}</span></td>
+                    <td className="p-3">
+                      <span className={`badge-brutal px-2 py-0.5 ${u.is_active ? 'bg-emerald-100 text-emerald-800' : 'bg-red-100 text-red-800'}`}>
+                        {u.is_active ? 'Active' : 'Inactive'}
+                      </span>
+                    </td>
+                    <td className="p-3">
+                      {u.username !== 'admin' && (
+                        <button onClick={() => onToggleStatus(u.id)} className="text-[11px] underline text-gray-700 hover:text-black">
+                          {u.is_active ? 'Deactivate' : 'Activate'}
+                        </button>
+                      )}
+                    </td>
                   </tr>
                 ))}
               </tbody>
@@ -1066,158 +1690,7 @@
       );
     }
 
-    // --- SETTINGS VIEW ---
-    function SettingsPanel({ settings, onSave, tables, onUpdateTableRate, onReset }) {
-      const [form, setForm] = useState({ ...settings });
-      return (
-        <div className="space-y-6">
-          <div className="bg-white border-brutal-thick p-5 shadow-brutal">
-            <h1 className="text-2xl font-black uppercase text-black">⚙️ Club Settings & Rate Customization</h1>
-            <p className="text-xs text-zinc-600 font-bold">Configure rates per table and club branding</p>
-          </div>
-
-          <form onSubmit={e => { e.preventDefault(); onSave(form); alert('Settings saved successfully!'); }} className="space-y-6">
-            <div className="bg-white border-brutal-thick p-6 shadow-brutal space-y-4">
-              <h2 className="text-base font-black uppercase border-b-2 border-black pb-2">🏢 Club Details</h2>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-xs font-bold uppercase mb-1">Club Name</label>
-                  <input type="text" value={form.club_name} onChange={e => setForm({ ...form, club_name: e.target.value })} className="w-full bg-zinc-50 border-2 border-black px-3 py-2 text-sm font-bold" />
-                </div>
-                <div>
-                  <label className="block text-xs font-bold uppercase mb-1">Phone</label>
-                  <input type="text" value={form.phone} onChange={e => setForm({ ...form, phone: e.target.value })} className="w-full bg-zinc-50 border-2 border-black px-3 py-2 text-sm font-mono" />
-                </div>
-                <div className="sm:col-span-2">
-                  <label className="block text-xs font-bold uppercase mb-1">Address</label>
-                  <input type="text" value={form.address} onChange={e => setForm({ ...form, address: e.target.value })} className="w-full bg-zinc-50 border-2 border-black px-3 py-2 text-sm" />
-                </div>
-              </div>
-            </div>
-
-            <div className="bg-white border-brutal-thick p-6 shadow-brutal space-y-4">
-              <h2 className="text-base font-black uppercase border-b-2 border-black pb-2">🎯 Global Default Rates (Rs.)</h2>
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-                <div>
-                  <label className="block text-xs font-bold uppercase mb-1">Century (Rs/min)</label>
-                  <input type="number" min="1" value={form.default_century} onChange={e => setForm({ ...form, default_century: Number(e.target.value) })} className="w-full bg-zinc-50 border-2 border-black px-3 py-2 text-sm font-mono font-bold" />
-                </div>
-                <div>
-                  <label className="block text-xs font-bold uppercase mb-1">6 Ball (Rs/frame)</label>
-                  <input type="number" min="1" value={form.default_6ball} onChange={e => setForm({ ...form, default_6ball: Number(e.target.value) })} className="w-full bg-zinc-50 border-2 border-black px-3 py-2 text-sm font-mono font-bold" />
-                </div>
-                <div>
-                  <label className="block text-xs font-bold uppercase mb-1">10 Ball (Rs/frame)</label>
-                  <input type="number" min="1" value={form.default_10ball} onChange={e => setForm({ ...form, default_10ball: Number(e.target.value) })} className="w-full bg-zinc-50 border-2 border-black px-3 py-2 text-sm font-mono font-bold" />
-                </div>
-                <div>
-                  <label className="block text-xs font-bold uppercase mb-1">One Ball (Rs/frame)</label>
-                  <input type="number" min="1" value={form.default_oneball} onChange={e => setForm({ ...form, default_oneball: Number(e.target.value) })} className="w-full bg-zinc-50 border-2 border-black px-3 py-2 text-sm font-mono font-bold" />
-                </div>
-              </div>
-              <button type="submit" className="bg-black text-brand-yellow font-black text-xs uppercase px-6 py-3 border-2 border-black shadow-brutal-sm">Save Global Rates</button>
-            </div>
-          </form>
-
-          {/* Individual Tables Pricing */}
-          <div className="bg-white border-brutal-thick p-6 shadow-brutal space-y-4">
-            <h2 className="text-base font-black uppercase border-b-2 border-black pb-2">🎱 Per-Table Pricing Customization</h2>
-            <div className="overflow-x-auto">
-              <table className="w-full text-left border-collapse text-xs">
-                <thead>
-                  <tr className="bg-zinc-100 font-black uppercase border-b-2 border-black">
-                    <th className="p-3">Table</th>
-                    <th className="p-3">Century (Rs/m)</th>
-                    <th className="p-3">6 Ball (Rs)</th>
-                    <th className="p-3">10 Ball (Rs)</th>
-                    <th className="p-3">One Ball (Rs)</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-zinc-300 font-bold">
-                  {tables.map(t => (
-                    <tr key={t.id}>
-                      <td className="p-3 font-black text-black">{t.name}</td>
-                      <td className="p-3"><input type="number" value={t.rate_century} onChange={e => onUpdateTableRate(t.id, 'rate_century', Number(e.target.value))} className="w-20 bg-zinc-50 border border-black px-2 py-1 font-mono font-bold" /></td>
-                      <td className="p-3"><input type="number" value={t.rate_6ball} onChange={e => onUpdateTableRate(t.id, 'rate_6ball', Number(e.target.value))} className="w-20 bg-zinc-50 border border-black px-2 py-1 font-mono font-bold" /></td>
-                      <td className="p-3"><input type="number" value={t.rate_10ball} onChange={e => onUpdateTableRate(t.id, 'rate_10ball', Number(e.target.value))} className="w-20 bg-zinc-50 border border-black px-2 py-1 font-mono font-bold" /></td>
-                      <td className="p-3"><input type="number" value={t.rate_oneball} onChange={e => onUpdateTableRate(t.id, 'rate_oneball', Number(e.target.value))} className="w-20 bg-zinc-50 border border-black px-2 py-1 font-mono font-bold" /></td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </div>
-
-          <div className="bg-red-50 border-2 border-red-500 p-5 shadow-brutal flex justify-between items-center">
-            <div>
-              <h3 className="text-sm font-black uppercase text-red-900">⚠️ Factory Reset</h3>
-              <p className="text-xs text-red-700">Restore initial tables, rates and test accounts.</p>
-            </div>
-            <button onClick={() => { if (confirm('Reset all records to factory defaults?')) onReset(); }} className="bg-red-600 text-white font-black text-xs uppercase px-4 py-2.5 border-2 border-black">Reset Database</button>
-          </div>
-        </div>
-      );
-    }
-
-    // --- LOGIN BOX ---
-    function LoginBox({ users, onLogin, onClose }) {
-      const [u, setU] = useState('');
-      const [p, setP] = useState('');
-      const [err, setErr] = useState('');
-
-      const handleAuth = (uname, pass) => {
-        const found = users.find(x => x.username.toLowerCase() === uname.trim().toLowerCase() && x.password === pass);
-        if (found) {
-          onLogin(found);
-        } else {
-          setErr('Invalid username or password.');
-        }
-      };
-
-      return (
-        <div className="fixed inset-0 z-50 bg-black/80 flex items-center justify-center p-4 backdrop-blur-sm">
-          <div className="bg-white border-brutal-thick w-full max-w-md shadow-brutal-lg p-6 space-y-4 font-sans">
-            <div className="flex justify-between items-center border-b-2 border-black pb-3">
-              <h2 className="text-xl font-black uppercase">🔐 Counter Staff & Admin Sign In</h2>
-              <button onClick={onClose} className="w-7 h-7 bg-black text-white font-bold">✕</button>
-            </div>
-
-            {err && <div className="bg-red-100 border border-red-500 p-2 text-xs font-bold text-red-900">{err}</div>}
-
-            <form onSubmit={e => { e.preventDefault(); handleAuth(u, p); }} className="space-y-3">
-              <div>
-                <label className="block text-xs font-black uppercase mb-1">Username</label>
-                <input required type="text" placeholder="admin or staff" value={u} onChange={e => setU(e.target.value)} className="w-full bg-zinc-50 border-2 border-black px-3 py-2 text-sm font-bold" />
-              </div>
-              <div>
-                <label className="block text-xs font-black uppercase mb-1">Password</label>
-                <input required type="password" placeholder="••••••••" value={p} onChange={e => setP(e.target.value)} className="w-full bg-zinc-50 border-2 border-black px-3 py-2 text-sm font-bold" />
-              </div>
-              <button type="submit" className="w-full bg-black text-brand-yellow font-black text-sm uppercase py-3 border-2 border-black shadow-brutal">
-                Log In to Counter
-              </button>
-            </form>
-
-            <div className="pt-2 border-t-2 border-dashed border-zinc-300 text-center space-y-2">
-              <div className="text-[11px] font-black uppercase text-zinc-500">— Quick 1-Click Sign In —</div>
-              <div className="grid grid-cols-2 gap-2">
-                <button onClick={() => handleAuth('admin', 'admin123')} className="bg-brand-yellow text-black font-black text-xs uppercase p-2 border-2 border-black shadow-brutal-sm">
-                  👑 Admin Login
-                  <div className="text-[10px] font-mono font-normal">admin / admin123</div>
-                </button>
-                <button onClick={() => handleAuth('staff', 'staff123')} className="bg-zinc-100 text-black font-black text-xs uppercase p-2 border-2 border-black shadow-brutal-sm">
-                  🎱 Staff Login
-                  <div className="text-[10px] font-mono font-normal">staff / staff123</div>
-                </button>
-              </div>
-            </div>
-
-          </div>
-        </div>
-      );
-    }
-
-    // Render App
+    // Render Root
     ReactDOM.createRoot(document.getElementById('root')).render(<App />);
   </script>
 </body>
