@@ -120,8 +120,11 @@
   <script type="text/babel">
     const { useState, useEffect, useRef } = React;
 
-    // REAL-TIME MULTI-DEVICE CLOUD SYNC ENDPOINT (CORS ENABLED FOR ALL DEVICES)
-    const CLOUD_SYNC_URL = 'https://api.restful-api.dev/objects/ff808181a09d98f701a0f2cfcd8a4e5b';
+    // REAL-TIME MULTI-DEVICE CLOUD SYNC ENDPOINTS (HIGH-SPEED DUAL-REDUNDANT ARCHITECTURE)
+    const SYNC_ENDPOINTS = [
+      'https://extendsclass.com/api/json-storage/bin/bcdcceb',
+      'https://extendsclass.com/api/json-storage/bin/dcaebea'
+    ];
 
     // REAL INITIAL DATA (CLEAN ZERO DEMO SESSIONS / CUSTOMERS)
     const DEFAULT_TABLES = [
@@ -183,32 +186,62 @@
       const [newSessionModalOpen, setNewSessionModalOpen] = useState(false);
       const [selectedTableForModal, setSelectedTableForModal] = useState(null);
       const [cloudSyncStatus, setCloudSyncStatus] = useState('synced'); // 'synced', 'syncing', 'offline'
+      const [lastSyncTime, setLastSyncTime] = useState(null);
 
-      const lastUpdatedRef = useRef(0);
+      const versionRef = useRef(getStore('cm_version', 0));
+      const lastUpdatedRef = useRef(getStore('cm_updatedAt', 0));
+      const isPushingRef = useRef(false);
 
       // --- MULTI-DEVICE CLOUD SYNC ENGINE ---
       const pushToCloud = async (newTables, newSessions, newCustomers) => {
         try {
           setCloudSyncStatus('syncing');
+          const currentTables = newTables || tables;
+          const currentSessions = newSessions || sessions;
+          const currentCustomers = newCustomers || customers;
+
+          const nextVersion = (Number(versionRef.current) || 0) + 1;
           const timestamp = Date.now();
+          versionRef.current = nextVersion;
           lastUpdatedRef.current = timestamp;
 
+          // Local persistence backup
+          setStore('cm_tables', currentTables);
+          setStore('cm_sessions', currentSessions);
+          setStore('cm_customers', currentCustomers);
+          setStore('cm_version', nextVersion);
+          setStore('cm_updatedAt', timestamp);
+
           const payload = {
-            name: 'snooker_pos_state',
-            data: {
-              tables: JSON.stringify(newTables || tables),
-              sessions: JSON.stringify(newSessions || sessions),
-              customers: JSON.stringify(newCustomers || customers),
-              updatedAt: timestamp
-            }
+            version: nextVersion,
+            updatedAt: timestamp,
+            tables: currentTables,
+            sessions: currentSessions,
+            customers: currentCustomers
           };
 
-          await fetch(CLOUD_SYNC_URL, {
+          const bodyStr = JSON.stringify(payload);
+
+          // Push to primary endpoint
+          const res = await fetch(SYNC_ENDPOINTS[0], {
             method: 'PUT',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(payload)
+            body: bodyStr
           });
-          setCloudSyncStatus('synced');
+
+          // Mirror asynchronously to secondary backup endpoint
+          fetch(SYNC_ENDPOINTS[1], {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: bodyStr
+          }).catch(() => {});
+
+          if (res.ok) {
+            setCloudSyncStatus('synced');
+            setLastSyncTime(new Date().toLocaleTimeString('en-US', { timeZone: 'Asia/Karachi', hour12: false }));
+          } else {
+            setCloudSyncStatus('offline');
+          }
         } catch (err) {
           console.warn('Cloud sync push error:', err);
           setCloudSyncStatus('offline');
@@ -216,42 +249,75 @@
       };
 
       const pullFromCloud = async () => {
-        try {
-          const res = await fetch(CLOUD_SYNC_URL);
-          if (!res.ok) return;
-          const json = await res.json();
-          if (json && json.data) {
-            const cloudTimestamp = Number(json.data.updatedAt) || 0;
-            if (cloudTimestamp > lastUpdatedRef.current) {
-              lastUpdatedRef.current = cloudTimestamp;
-              if (json.data.tables) {
-                const parsedTables = JSON.parse(json.data.tables);
-                setTables(parsedTables);
-                setStore('cm_tables', parsedTables);
+        for (const endpoint of SYNC_ENDPOINTS) {
+          try {
+            const res = await fetch(`${endpoint}?_cb=${Date.now()}`, {
+              cache: 'no-store',
+              headers: {
+                'Cache-Control': 'no-cache, no-store, must-revalidate',
+                'Pragma': 'no-cache'
               }
-              if (json.data.sessions) {
-                const parsedSessions = JSON.parse(json.data.sessions);
-                setSessions(parsedSessions);
-                setStore('cm_sessions', parsedSessions);
+            });
+            if (!res.ok) continue;
+            const data = await res.json();
+            if (data && Array.isArray(data.tables)) {
+              const cloudVersion = Number(data.version) || 0;
+              const cloudTimestamp = Number(data.updatedAt) || 0;
+
+              const shouldApply = (versionRef.current === 0) ||
+                                  (cloudVersion > versionRef.current) ||
+                                  (cloudVersion === versionRef.current && cloudTimestamp > lastUpdatedRef.current);
+
+              if (shouldApply) {
+                versionRef.current = cloudVersion;
+                lastUpdatedRef.current = cloudTimestamp;
+
+                setTables(data.tables);
+                setStore('cm_tables', data.tables);
+
+                if (Array.isArray(data.sessions)) {
+                  setSessions(data.sessions);
+                  setStore('cm_sessions', data.sessions);
+                }
+                if (Array.isArray(data.customers)) {
+                  setCustomers(data.customers);
+                  setStore('cm_customers', data.customers);
+                }
+                setStore('cm_version', cloudVersion);
+                setStore('cm_updatedAt', cloudTimestamp);
               }
-              if (json.data.customers) {
-                const parsedCustomers = JSON.parse(json.data.customers);
-                setCustomers(parsedCustomers);
-                setStore('cm_customers', parsedCustomers);
-              }
+              setCloudSyncStatus('synced');
+              setLastSyncTime(new Date().toLocaleTimeString('en-US', { timeZone: 'Asia/Karachi', hour12: false }));
+              return;
             }
-            setCloudSyncStatus('synced');
+          } catch (err) {
+            // try next endpoint
           }
-        } catch (err) {
-          setCloudSyncStatus('offline');
         }
+        setCloudSyncStatus('offline');
       };
 
-      // Pull from cloud on mount and poll every 3 seconds for cross-device live updates
+      // Pull from cloud on mount, poll every 1.5 seconds, and sync on tab focus/visibility
       useEffect(() => {
         pullFromCloud();
-        const pollInterval = setInterval(pullFromCloud, 3000);
-        return () => clearInterval(pollInterval);
+        const pollInterval = setInterval(pullFromCloud, 1500);
+
+        const handleFocus = () => pullFromCloud();
+        const handleVisibility = () => {
+          if (!document.hidden) pullFromCloud();
+        };
+        const handleOnline = () => pullFromCloud();
+
+        window.addEventListener('focus', handleFocus);
+        document.addEventListener('visibilitychange', handleVisibility);
+        window.addEventListener('online', handleOnline);
+
+        return () => {
+          clearInterval(pollInterval);
+          window.removeEventListener('focus', handleFocus);
+          document.removeEventListener('visibilitychange', handleVisibility);
+          window.removeEventListener('online', handleOnline);
+        };
       }, []);
 
       // Local storage mirror
@@ -287,6 +353,13 @@
       };
 
       const handleStartMatch = ({ tableId, customerName, customerPhone, gameType, rateApplied, rounds }) => {
+        const targetTable = tables.find(t => t.id === tableId);
+        if (targetTable && targetTable.status === 'occupied') {
+          alert(`Table "${targetTable.name}" is already in an active session! Another terminal may have just started it.`);
+          pullFromCloud();
+          return;
+        }
+
         const sessionCode = `SNK-${Date.now().toString().slice(-6)}`;
         let updatedCustomers = [...customers];
 
@@ -409,7 +482,14 @@
               <span className="font-black tracking-tight text-base uppercase">{settings.club_name}</span>
             </div>
             <div className="flex items-center space-x-2">
-              <span className={`w-2.5 h-2.5 rounded-full ${cloudSyncStatus === 'synced' ? 'bg-emerald-500 animate-pulse' : 'bg-amber-500'}`} title="Cloud Sync"></span>
+              <button
+                onClick={pullFromCloud}
+                title="Tap to refresh state immediately"
+                className="flex items-center gap-1.5 px-2 py-1 bg-white border border-black shadow-[2px_2px_0px_0px_#000] text-[10px] font-bold active:translate-y-0.5"
+              >
+                <span className={`w-2 h-2 rounded-full ${cloudSyncStatus === 'synced' ? 'bg-emerald-500 animate-pulse' : cloudSyncStatus === 'syncing' ? 'bg-amber-500' : 'bg-red-500'}`}></span>
+                <i className={`fa-solid fa-arrows-rotate text-[10px] ${cloudSyncStatus === 'syncing' ? 'animate-spin text-amber-600' : 'text-gray-700'}`}></i>
+              </button>
               <button
                 onClick={() => { setSelectedTableForModal(tables.find(t => t.status === 'available') || tables[0]); setNewSessionModalOpen(true); }}
                 className="btn-brutal px-3 py-1 bg-brand-yellow text-xs flex items-center gap-1 font-bold"
@@ -437,11 +517,18 @@
                   </div>
                   <div>
                     <h1 className="font-black text-lg tracking-tight uppercase leading-tight">{settings.club_name}</h1>
-                    <div className="flex items-center gap-1.5 mt-0.5">
-                      <span className={`w-2 h-2 rounded-full ${cloudSyncStatus === 'synced' ? 'bg-emerald-500 animate-pulse' : 'bg-amber-500'}`}></span>
+                    <div className="flex items-center gap-1.5 mt-1">
+                      <span className={`w-2 h-2 rounded-full ${cloudSyncStatus === 'synced' ? 'bg-emerald-500 animate-pulse' : cloudSyncStatus === 'syncing' ? 'bg-amber-500' : 'bg-red-500'}`}></span>
                       <p className="text-[10px] font-bold text-gray-500 uppercase tracking-wider">
-                        {cloudSyncStatus === 'synced' ? 'Multi-Device Live' : 'Syncing...'}
+                        {cloudSyncStatus === 'synced' ? 'Multi-Device Live' : cloudSyncStatus === 'syncing' ? 'Syncing...' : 'Offline'}
                       </p>
+                      <button
+                        onClick={pullFromCloud}
+                        title="Force cloud sync"
+                        className="ml-1 text-gray-400 hover:text-black transition"
+                      >
+                        <i className={`fa-solid fa-arrows-rotate text-[10px] ${cloudSyncStatus === 'syncing' ? 'animate-spin text-amber-500' : ''}`}></i>
+                      </button>
                     </div>
                   </div>
                 </div>
@@ -794,7 +881,7 @@
           }
           onLogin(found);
         } else {
-          setError('Invalid username or password. Default logins: admin / admin123 or staff / staff123');
+          setError('Invalid username or password. Please verify your reception counter credentials.');
         }
       };
 
@@ -870,29 +957,6 @@
                   <span>Enter Dashboard</span>
                 </button>
               </form>
-
-              {/* 1-Click Quick Fill Helper */}
-              <div className="mt-6 pt-4 border-t-2 border-dashed border-gray-300">
-                <div className="text-center text-[10px] font-black uppercase text-gray-400 mb-2">
-                  — Quick Fill Credentials —
-                </div>
-                <div className="grid grid-cols-2 gap-2">
-                  <button
-                    type="button"
-                    onClick={() => { setUsername('admin'); setPassword('admin123'); }}
-                    className="p-1.5 text-center text-xs font-bold border border-black bg-gray-50 hover:bg-yellow-100"
-                  >
-                    👑 Admin (admin)
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => { setUsername('staff'); setPassword('staff123'); }}
-                    className="p-1.5 text-center text-xs font-bold border border-black bg-gray-50 hover:bg-yellow-100"
-                  >
-                    🎱 Staff (staff)
-                  </button>
-                </div>
-              </div>
 
             </div>
           </div>
@@ -1047,7 +1111,10 @@
     // NEW SESSION MODAL
     // ==========================================
     function NewSessionModal({ table, tables, customers, onClose, onStart }) {
-      const [selTableId, setSelTableId] = useState(table ? table.id : 1);
+      const defaultTable = (table && table.status === 'available')
+        ? table
+        : (tables.find(t => t.status === 'available') || tables[0]);
+      const [selTableId, setSelTableId] = useState(defaultTable ? defaultTable.id : 1);
       const [gameType, setGameType] = useState('century');
       const [playerName, setPlayerName] = useState('');
       const [playerPhone, setPlayerPhone] = useState('');
@@ -1071,6 +1138,11 @@
 
             <form onSubmit={(e) => {
               e.preventDefault();
+              const chosen = tables.find(t => t.id === Number(selTableId));
+              if (chosen && chosen.status === 'occupied') {
+                alert(`Table "${chosen.name}" is already occupied! Please choose an available table.`);
+                return;
+              }
               onStart({
                 tableId: Number(selTableId),
                 customerName: playerName.trim() || 'Walk-in Player',
