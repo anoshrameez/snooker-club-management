@@ -168,6 +168,46 @@
       } catch (e) {}
     }
 
+    // MULTI-TERMINAL DATA MERGERS (PROTECTS FROM OVERWRITING PAST SESSIONS)
+    function mergeUniqueSessions(listA, listB) {
+      const map = new Map();
+      (listB || []).forEach(s => {
+        if (s && (s.id || s.session_code)) {
+          map.set(s.session_code || s.id, s);
+        }
+      });
+      (listA || []).forEach(s => {
+        if (s && (s.id || s.session_code)) {
+          map.set(s.session_code || s.id, s);
+        }
+      });
+      return Array.from(map.values()).sort((a, b) => (b.id || 0) - (a.id || 0));
+    }
+
+    function mergeUniqueCustomers(listA, listB) {
+      const map = new Map();
+      (listB || []).forEach(c => {
+        if (c && c.name) map.set(c.name.trim().toLowerCase(), c);
+      });
+      (listA || []).forEach(c => {
+        if (c && c.name) {
+          const key = c.name.trim().toLowerCase();
+          const existing = map.get(key);
+          if (existing) {
+            map.set(key, {
+              ...existing,
+              ...c,
+              total_visits: Math.max(existing.total_visits || 1, c.total_visits || 1),
+              total_spent: Math.max(existing.total_spent || 0, c.total_spent || 0)
+            });
+          } else {
+            map.set(key, c);
+          }
+        }
+      });
+      return Array.from(map.values());
+    }
+
     // ==========================================
     // MAIN APP WITH REAL-TIME CLOUD SYNC
     // ==========================================
@@ -188,36 +228,50 @@
       const [cloudSyncStatus, setCloudSyncStatus] = useState('synced'); // 'synced', 'syncing', 'offline'
       const [lastSyncTime, setLastSyncTime] = useState(null);
 
-      const versionRef = useRef(getStore('cm_version', 0));
-      const lastUpdatedRef = useRef(getStore('cm_updatedAt', 0));
-      const isPushingRef = useRef(false);
+      const myLastPushedTag = useRef(null);
+      const lastAppliedTimestamp = useRef(0);
 
       // --- MULTI-DEVICE CLOUD SYNC ENGINE ---
       const pushToCloud = async (newTables, newSessions, newCustomers) => {
         try {
           setCloudSyncStatus('syncing');
-          const currentTables = newTables || tables;
-          const currentSessions = newSessions || sessions;
-          const currentCustomers = newCustomers || customers;
-
-          const nextVersion = (Number(versionRef.current) || 0) + 1;
           const timestamp = Date.now();
-          versionRef.current = nextVersion;
-          lastUpdatedRef.current = timestamp;
+          const clientTag = 'tag_' + Math.random().toString(36).substring(2, 8) + '_' + timestamp;
+          myLastPushedTag.current = clientTag;
+          lastAppliedTimestamp.current = timestamp;
 
-          // Local persistence backup
-          setStore('cm_tables', currentTables);
-          setStore('cm_sessions', currentSessions);
-          setStore('cm_customers', currentCustomers);
-          setStore('cm_version', nextVersion);
-          setStore('cm_updatedAt', timestamp);
+          let targetTables = newTables || tables;
+          let targetSessions = newSessions || sessions;
+          let targetCustomers = newCustomers || customers;
+
+          // Safe peek to merge cloud history so past sessions are never lost across devices
+          try {
+            const peekRes = await fetch(`${SYNC_ENDPOINTS[0]}?_cb=${timestamp}`, { cache: 'no-store' });
+            if (peekRes.ok) {
+              const cloudData = await peekRes.json();
+              if (cloudData && Array.isArray(cloudData.sessions)) {
+                targetSessions = mergeUniqueSessions(targetSessions, cloudData.sessions);
+              }
+              if (cloudData && Array.isArray(cloudData.customers)) {
+                targetCustomers = mergeUniqueCustomers(targetCustomers, cloudData.customers);
+              }
+            }
+          } catch (e) {}
+
+          setTables(targetTables);
+          setSessions(targetSessions);
+          setCustomers(targetCustomers);
+          setStore('cm_tables', targetTables);
+          setStore('cm_sessions', targetSessions);
+          setStore('cm_customers', targetCustomers);
+          setStore('cm_sync_time', timestamp);
 
           const payload = {
-            version: nextVersion,
             updatedAt: timestamp,
-            tables: currentTables,
-            sessions: currentSessions,
-            customers: currentCustomers
+            clientTag: clientTag,
+            tables: targetTables,
+            sessions: targetSessions,
+            customers: targetCustomers
           };
 
           const bodyStr = JSON.stringify(payload);
@@ -248,7 +302,7 @@
         }
       };
 
-      const pullFromCloud = async () => {
+      const pullFromCloud = async (isManual = false) => {
         for (const endpoint of SYNC_ENDPOINTS) {
           try {
             const res = await fetch(`${endpoint}?_cb=${Date.now()}`, {
@@ -261,16 +315,15 @@
             if (!res.ok) continue;
             const data = await res.json();
             if (data && Array.isArray(data.tables)) {
-              const cloudVersion = Number(data.version) || 0;
               const cloudTimestamp = Number(data.updatedAt) || 0;
+              const cloudTag = data.clientTag;
 
-              const shouldApply = (versionRef.current === 0) ||
-                                  (cloudVersion > versionRef.current) ||
-                                  (cloudVersion === versionRef.current && cloudTimestamp > lastUpdatedRef.current);
+              const isFromOtherDevice = !cloudTag || cloudTag !== myLastPushedTag.current;
+              const isNewer = cloudTimestamp > lastAppliedTimestamp.current;
+              const isInitial = lastAppliedTimestamp.current === 0;
 
-              if (shouldApply) {
-                versionRef.current = cloudVersion;
-                lastUpdatedRef.current = cloudTimestamp;
+              if (isInitial || isManual || (isFromOtherDevice && isNewer)) {
+                lastAppliedTimestamp.current = cloudTimestamp;
 
                 setTables(data.tables);
                 setStore('cm_tables', data.tables);
@@ -283,8 +336,7 @@
                   setCustomers(data.customers);
                   setStore('cm_customers', data.customers);
                 }
-                setStore('cm_version', cloudVersion);
-                setStore('cm_updatedAt', cloudTimestamp);
+                setStore('cm_sync_time', cloudTimestamp);
               }
               setCloudSyncStatus('synced');
               setLastSyncTime(new Date().toLocaleTimeString('en-US', { timeZone: 'Asia/Karachi', hour12: false }));
@@ -299,14 +351,14 @@
 
       // Pull from cloud on mount, poll every 1.5 seconds, and sync on tab focus/visibility
       useEffect(() => {
-        pullFromCloud();
-        const pollInterval = setInterval(pullFromCloud, 1500);
+        pullFromCloud(true); // Always pull latest on mount
+        const pollInterval = setInterval(() => pullFromCloud(false), 1500);
 
-        const handleFocus = () => pullFromCloud();
+        const handleFocus = () => pullFromCloud(true);
         const handleVisibility = () => {
-          if (!document.hidden) pullFromCloud();
+          if (!document.hidden) pullFromCloud(true);
         };
-        const handleOnline = () => pullFromCloud();
+        const handleOnline = () => pullFromCloud(true);
 
         window.addEventListener('focus', handleFocus);
         document.addEventListener('visibilitychange', handleVisibility);
@@ -693,14 +745,35 @@
                       <div className="w-10 h-10 bg-brand-yellow border-2 border-black flex items-center justify-center text-lg shrink-0 mt-0.5 shadow-brutal-sm">
                         <i className="fa-solid fa-bell text-black animate-pulse"></i>
                       </div>
-                      <div>
-                        <div className="flex items-center gap-2">
-                          <span className="badge-brutal px-2 py-0.5 bg-black text-white text-[11px]">ACTIVE MATCH RUNNING</span>
-                          <span className="font-bold text-xs text-amber-900">{activeSessions.length} table(s) in play • Synced across all devices</span>
+                      <div className="flex-1">
+                        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-1">
+                          <div className="flex items-center gap-2">
+                            <span className="badge-brutal px-2 py-0.5 bg-black text-white text-[11px]">ACTIVE MATCH RUNNING</span>
+                            <span className="font-bold text-xs text-amber-900">{activeSessions.length} table(s) in play • Live synced</span>
+                          </div>
+                          <span className="text-[10px] font-mono font-bold bg-white px-2 py-0.5 border border-black uppercase text-emerald-800">
+                            ● Real-time Active
+                          </span>
                         </div>
-                        <p className="mt-1 text-xs text-gray-700 font-bold">
-                          Matches started on desktop or mobile sync live in real-time. End session to record cash in ledger.
-                        </p>
+                        <div className="mt-3 grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2.5">
+                          {activeSessions.map(t => (
+                            <div key={t.id} className="p-2.5 bg-white border-2 border-black shadow-brutal-sm text-xs flex justify-between items-center">
+                              <div>
+                                <p className="font-black text-gray-950 uppercase">{t.name}</p>
+                                <p className="text-[11px] text-gray-700 font-bold">{t.session.customer_name} • <span className="uppercase font-mono text-amber-800">{t.session.game_type}</span></p>
+                              </div>
+                              <button
+                                onClick={() => {
+                                  const el = document.getElementById(`table-card-${t.id}`);
+                                  if (el) el.scrollIntoView({ behavior: 'smooth' });
+                                }}
+                                className="px-2 py-1 bg-brand-yellow border border-black text-[10px] font-black uppercase hover:bg-yellow-400 cursor-pointer shadow-brutal-xs"
+                              >
+                                View Table ↓
+                              </button>
+                            </div>
+                          ))}
+                        </div>
                       </div>
                     </div>
                   </div>
@@ -762,13 +835,14 @@
 
                   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                     {tables.map(table => (
-                      <TableCardItem
-                        key={table.id}
-                        table={table}
-                        onStartSession={(t) => { setSelectedTableForModal(t); setNewSessionModalOpen(true); }}
-                        onEndSession={(t, elapsed, total) => setCheckoutData({ table: t, elapsedSeconds: elapsed, initialTotal: total })}
-                        onUpdateRounds={handleUpdateRounds}
-                      />
+                      <div id={`table-card-${table.id}`} key={table.id}>
+                        <TableCardItem
+                          table={table}
+                          onStartSession={(t) => { setSelectedTableForModal(t); setNewSessionModalOpen(true); }}
+                          onEndSession={(t, elapsed, total) => setCheckoutData({ table: t, elapsedSeconds: elapsed, initialTotal: total })}
+                          onUpdateRounds={handleUpdateRounds}
+                        />
+                      </div>
                     ))}
                   </div>
                 </div>
@@ -778,7 +852,16 @@
 
             {/* VIEW 2: SESSIONS HISTORY */}
             {activeTab === 'history' && (
-              <SessionsHistoryView sessions={sessions} />
+              <SessionsHistoryView
+                sessions={sessions}
+                tables={tables}
+                onEndSession={(t) => {
+                  const elapsed = t.session?.start_time ? Math.max(0, Math.floor((Date.now() - new Date(t.session.start_time).getTime()) / 1000)) : 0;
+                  const rate = Number(t.session?.rate_applied) || 10;
+                  const total = t.session?.game_type === 'century' ? Math.max(1, Math.ceil(elapsed / 60)) * rate : (Number(t.session?.rounds) || 1) * rate;
+                  setCheckoutData({ table: t, elapsedSeconds: elapsed, initialTotal: total });
+                }}
+              />
             )}
 
             {/* VIEW 3: CUSTOMERS */}
@@ -1448,16 +1531,58 @@
     // ==========================================
     // SESSIONS HISTORY VIEW
     // ==========================================
-    function SessionsHistoryView({ sessions }) {
+    function SessionsHistoryView({ sessions, tables, onEndSession }) {
+      const activeMatches = (tables || []).filter(t => t.status === 'occupied' && t.session);
+
       return (
         <div className="space-y-6">
           <div className="flex items-center justify-between pb-2 border-b-2 border-black">
             <div>
               <h1 className="text-2xl font-black uppercase tracking-tight text-gray-950">Sessions History</h1>
-              <p className="text-xs font-bold text-gray-600 uppercase tracking-widest mt-0.5">All settled counter sessions • Live across devices</p>
+              <p className="text-xs font-bold text-gray-600 uppercase tracking-widest mt-0.5">Live active matches & settled ledger • Synced across all devices</p>
             </div>
-            <span className="badge-brutal px-3 py-1 bg-black text-white font-mono">{sessions.length} Recorded</span>
+            <span className="badge-brutal px-3 py-1 bg-black text-white font-mono">{sessions.length} Settled</span>
           </div>
+
+          {/* ACTIVE IN-PLAY MATCHES SECTION */}
+          {activeMatches.length > 0 && (
+            <div className="card-brutal p-4 bg-amber-50 border-2 border-black shadow-brutal space-y-3">
+              <div className="flex items-center justify-between border-b border-amber-300 pb-2">
+                <div className="flex items-center gap-2">
+                  <span className="w-2.5 h-2.5 bg-red-600 rounded-full animate-ping"></span>
+                  <h2 className="text-sm font-black uppercase text-black">Active In-Play Matches ({activeMatches.length})</h2>
+                </div>
+                <span className="text-[10px] font-mono font-bold bg-brand-yellow px-2 py-0.5 border border-black uppercase">Live Counter</span>
+              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                {activeMatches.map(t => {
+                  const elapsedMins = t.session.start_time ? Math.max(1, Math.ceil((Date.now() - new Date(t.session.start_time).getTime()) / 60000)) : 1;
+                  const rate = Number(t.session.rate_applied) || 10;
+                  const currentBill = t.session.game_type === 'century' ? elapsedMins * rate : (Number(t.session.rounds) || 1) * rate;
+
+                  return (
+                    <div key={t.id} className="p-3 bg-white border-2 border-black shadow-brutal-sm flex flex-col justify-between space-y-2">
+                      <div className="flex justify-between items-start">
+                        <div>
+                          <p className="font-black text-sm uppercase text-gray-950">{t.name}</p>
+                          <p className="text-xs text-gray-800 font-bold mt-0.5">Player: <span className="text-black font-black">{t.session.customer_name}</span></p>
+                          <p className="text-[10px] font-mono text-gray-600 uppercase mt-0.5">Mode: <span className="font-bold">{t.session.game_type}</span> • Bill: <span className="text-emerald-700 font-black font-mono">Rs. {currentBill}</span></p>
+                        </div>
+                        <span className="badge-brutal px-1.5 py-0.5 bg-red-600 text-white text-[10px] uppercase font-bold animate-pulse">In Play</span>
+                      </div>
+                      <button
+                        onClick={() => onEndSession && onEndSession(t)}
+                        className="w-full btn-brutal py-1.5 bg-red-600 hover:bg-red-500 text-white text-xs font-black uppercase tracking-wider flex items-center justify-center gap-1.5"
+                      >
+                        <i className="fa-solid fa-flag-checkered text-[10px]"></i>
+                        <span>End & Cash Out</span>
+                      </button>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
 
           <div className="card-brutal overflow-x-auto bg-white">
             <table className="w-full text-left border-collapse text-xs">
