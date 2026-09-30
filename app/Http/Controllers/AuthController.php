@@ -19,30 +19,32 @@ class AuthController extends Controller
     public function login(Request $request)
     {
         $credentials = $request->validate([
-            'email' => ['required', 'email'],
+            'username' => ['required', 'string'],
             'password' => ['required'],
         ]);
 
         $remember = $request->boolean('remember');
 
-        if (Auth::attempt($credentials, $remember)) {
+        // Check credentials by username or email fallback
+        $loginField = filter_var($credentials['username'], FILTER_VALIDATE_EMAIL) ? 'email' : 'username';
+
+        if (Auth::attempt([$loginField => $credentials['username'], 'password' => $credentials['password']], $remember)) {
             $request->session()->regenerate();
 
-            // Check if user is active
             if (!Auth::user()->is_active) {
                 Auth::logout();
                 $request->session()->invalidate();
                 $request->session()->regenerateToken();
-                return back()->withErrors(['email' => 'Your account has been deactivated. Please contact the administrator.']);
+                return back()->withErrors(['username' => 'Your account has been deactivated. Please contact the administrator.']);
             }
 
             return redirect()->intended(route('dashboard'))
-                ->with('success', 'Welcome back, ' . Auth::user()->name);
+                ->with('success', 'Logged in successfully.');
         }
 
         return back()->withErrors([
-            'email' => 'The provided credentials do not match our records.',
-        ])->onlyInput('email');
+            'username' => 'Invalid username or password. Please try again.',
+        ])->onlyInput('username');
     }
 
     public function logout(Request $request)
@@ -51,6 +53,6 @@ class AuthController extends Controller
         $request->session()->invalidate();
         $request->session()->regenerateToken();
 
-        return redirect()->route('login')->with('info', 'You have been logged out.');
+        return redirect()->route('login')->with('info', 'Logged out.');
     }
 }

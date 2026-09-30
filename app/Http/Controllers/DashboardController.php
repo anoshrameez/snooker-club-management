@@ -24,15 +24,35 @@ class DashboardController extends Controller
         $paidAmount = (float) (clone $todaySessionsQuery)->where('payment_status', 'paid')->sum('total_price');
         $unpaidAmount = (float) (clone $todaySessionsQuery)->where('payment_status', 'unpaid')->sum('total_price');
 
-        // Tables & Active Sessions
-        $tables = ClubTable::with(['currentSession.customer'])->orderBy('id')->get();
-        $activeTablesCount = $tables->where('status', 'occupied')->count();
-
-        // Any active unfinished sessions for quick recovery banner
+        // Concurrency & Integrity Guarantee: Reconcile table statuses with active sessions
+        // Any active session strictly locks its table as occupied until explicitly finished
         $activeSessions = GameSession::with(['customer', 'table'])
             ->where('status', 'active')
             ->orderBy('id', 'desc')
             ->get();
+
+        $activeTableIds = [];
+        foreach ($activeSessions as $actSess) {
+            if ($actSess->table_id) {
+                $activeTableIds[] = $actSess->table_id;
+                ClubTable::where('id', $actSess->table_id)->update([
+                    'status' => 'occupied',
+                    'current_session_id' => $actSess->id,
+                ]);
+            }
+        }
+
+        // Clean up orphaned occupied tables if no active session exists
+        ClubTable::where('status', 'occupied')
+            ->whereNotIn('id', $activeTableIds)
+            ->update([
+                'status' => 'available',
+                'current_session_id' => null,
+            ]);
+
+        // Tables & Active Sessions
+        $tables = ClubTable::with(['currentSession.customer'])->orderBy('id')->get();
+        $activeTablesCount = $tables->where('status', 'occupied')->count();
 
         // Recent completed sessions today
         $recentSessions = GameSession::with(['customer', 'table', 'user'])

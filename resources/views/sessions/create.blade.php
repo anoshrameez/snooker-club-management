@@ -3,7 +3,7 @@
 @section('title', 'New Game Session')
 
 @section('content')
-<div class="max-w-2xl mx-auto space-y-6">
+<div class="max-w-3xl mx-auto space-y-6">
 
   <!-- Breadcrumb / Header -->
   <div class="border-b-2 border-black pb-3 flex items-center justify-between">
@@ -13,7 +13,7 @@
         <span>Start New Game Session</span>
       </h1>
       <p class="text-xs font-bold text-gray-600 uppercase tracking-widest mt-1">
-        Check-In Customer & Assign Snooker Table
+        Assign Table & Gameplay Mode
       </p>
     </div>
     <a href="{{ route('dashboard') }}" class="btn-brutal px-3 py-1.5 bg-white text-xs uppercase font-bold">
@@ -22,81 +22,148 @@
   </div>
 
   @if($availableTables->isEmpty())
-    <div class="card-brutal p-6 bg-red-50 border-red-600 border-2 text-center space-y-3">
-      <i class="fa-solid fa-triangle-exclamation text-3xl text-red-600"></i>
-      <h2 class="text-lg font-black text-red-950 uppercase">No Tables Currently Available</h2>
-      <p class="text-xs font-bold text-red-800">
-        All snooker and pool tables are either occupied in active play or under maintenance. Check out an active table first to start a new game.
+    <div class="card-brutal p-8 bg-red-50 border-red-600 border-2 text-center space-y-3">
+      <i class="fa-solid fa-triangle-exclamation text-4xl text-red-600"></i>
+      <h2 class="text-lg font-black text-red-950 uppercase">No Tables Available Right Now</h2>
+      <p class="text-xs font-bold text-red-800 max-w-md mx-auto">
+        All tables are currently occupied with active games. Check out an active session on the dashboard to free up a table.
       </p>
-      <a href="{{ route('dashboard') }}" class="btn-brutal inline-block px-5 py-2.5 bg-black text-white text-xs uppercase font-bold mt-2">
-        Return to Dashboard
-      </a>
+      <div class="pt-2">
+        <a href="{{ route('dashboard') }}" class="btn-brutal inline-block px-5 py-2.5 bg-black text-white text-xs uppercase font-bold">
+          View Active Sessions
+        </a>
+      </div>
     </div>
   @else
 
     <!-- Main New Session Form Card -->
     <div class="card-brutal p-6 sm:p-8 bg-white space-y-6">
-      <form action="{{ route('sessions.store') }}" method="POST" id="new-session-form" class="space-y-6">
+      <form action="{{ route('sessions.store', [], false) }}" method="POST" id="new-session-form" class="space-y-6">
         @csrf
 
-        <!-- 1. Customer Name with Auto-Suggest -->
-        <div class="space-y-1.5 relative">
-          <label for="customer_name" class="block text-xs font-black uppercase tracking-wider text-gray-950 flex justify-between">
-            <span>1. Customer / Player Name <span class="text-red-600">*</span></span>
-            <span class="text-[10px] text-gray-500 font-bold lowercase">type to search existing</span>
-          </label>
-          <div class="relative">
-            <input 
-              type="text" 
-              name="customer_name" 
-              id="customer_name" 
-              autocomplete="off"
-              required 
-              value="{{ old('customer_name') }}"
-              placeholder="e.g. Ahmed Khan or Team Alex" 
-              class="w-full input-brutal px-4 py-3 text-base text-gray-950 font-bold"
-            >
-            <div id="customer-suggestions" class="hidden absolute left-0 right-0 top-full mt-1 bg-white border-2 border-black shadow-brutal z-50 max-h-48 overflow-y-auto">
-              <!-- Populated by JS -->
-            </div>
-          </div>
-
-          <!-- Quick Recent Customers Chips -->
-          @if($recentCustomers->isNotEmpty())
-            <div class="pt-1 flex flex-wrap items-center gap-1.5">
-              <span class="text-[10px] font-black uppercase text-gray-500 mr-1">Frequent:</span>
-              @foreach($recentCustomers as $rc)
-                <button type="button" onclick="selectCustomer('{{ addslashes($rc->name) }}', '{{ $rc->phone }}')" class="btn-brutal px-2 py-0.5 bg-gray-100 hover:bg-yellow-200 text-[11px] font-bold">
-                  {{ $rc->name }}
-                </button>
-              @endforeach
-            </div>
-          @endif
-        </div>
-
-        <!-- 2. Customer Phone (Optional) -->
+        <!-- 1. Customer Name (Clean, direct text input - No autocomplete clutter) -->
         <div class="space-y-1.5">
-          <label for="customer_phone" class="block text-xs font-black uppercase tracking-wider text-gray-950">
-            2. Phone Number <span class="text-gray-500 text-[10px] lowercase font-normal">(optional)</span>
+          <label for="customer_name" class="block text-xs font-black uppercase tracking-wider text-gray-950">
+            1. Customer / Player Name <span class="text-red-600">*</span>
           </label>
           <input 
-            type="tel" 
-            name="customer_phone" 
-            id="customer_phone" 
-            value="{{ old('customer_phone') }}"
-            placeholder="e.g. 0300-1234567" 
-            class="w-full input-brutal px-4 py-2.5 text-sm text-gray-950 font-mono"
+            type="text" 
+            name="customer_name" 
+            id="customer_name" 
+            required 
+            value="{{ old('customer_name') }}"
+            placeholder="Enter customer name..." 
+            class="w-full input-brutal px-4 py-3 text-base text-gray-950 font-bold"
+            autofocus
           >
         </div>
 
-        <!-- 3. Table Selection -->
+        <!-- 2. Gameplay Mode Selection (The 4 Official Modes) -->
         <div class="space-y-2">
           <label class="block text-xs font-black uppercase tracking-wider text-gray-950">
-            3. Select Available Table <span class="text-red-600">*</span>
+            2. Select Gameplay Mode <span class="text-red-600">*</span>
+          </label>
+          <div class="grid grid-cols-2 sm:grid-cols-4 gap-3">
+            
+            <!-- Century -->
+            <label class="cursor-pointer border-2 border-black p-3.5 block relative select-none gameplay-choice bg-brand-yellow shadow-brutal-sm ring-2 ring-black transition">
+              <input 
+                type="radio" 
+                name="game_type" 
+                value="century" 
+                class="sr-only" 
+                {{ old('game_type', 'century') === 'century' ? 'checked' : '' }}
+                onchange="updateGameplaySelectionUI()"
+              >
+              <div class="flex items-center justify-between mb-1">
+                <span class="text-lg">⏱️</span>
+                <span class="badge-brutal px-1.5 py-0.5 bg-black text-brand-yellow text-[9px]">TIME</span>
+              </div>
+              <div class="font-black text-sm uppercase text-gray-950">Century</div>
+              <div class="text-[11px] font-bold text-gray-800 mt-1 game-rate-display" data-game="century">
+                Rs. 10 / min
+              </div>
+            </label>
+
+            <!-- 6 Ball -->
+            <label class="cursor-pointer border-2 border-black p-3.5 block relative select-none gameplay-choice bg-gray-50 hover:bg-gray-100 transition">
+              <input 
+                type="radio" 
+                name="game_type" 
+                value="6_ball" 
+                class="sr-only" 
+                {{ old('game_type') === '6_ball' ? 'checked' : '' }}
+                onchange="updateGameplaySelectionUI()"
+              >
+              <div class="flex items-center justify-between mb-1">
+                <span class="text-lg">🎱</span>
+                <span class="badge-brutal px-1.5 py-0.5 bg-gray-200 text-gray-900 text-[9px]">FRAME</span>
+              </div>
+              <div class="font-black text-sm uppercase text-gray-950">6 Ball</div>
+              <div class="text-[11px] font-bold text-gray-800 mt-1 game-rate-display" data-game="6_ball">
+                Rs. 130 / frame
+              </div>
+            </label>
+
+            <!-- 10 Ball -->
+            <label class="cursor-pointer border-2 border-black p-3.5 block relative select-none gameplay-choice bg-gray-50 hover:bg-gray-100 transition">
+              <input 
+                type="radio" 
+                name="game_type" 
+                value="10_ball" 
+                class="sr-only" 
+                {{ old('game_type') === '10_ball' ? 'checked' : '' }}
+                onchange="updateGameplaySelectionUI()"
+              >
+              <div class="flex items-center justify-between mb-1">
+                <span class="text-lg">🔴</span>
+                <span class="badge-brutal px-1.5 py-0.5 bg-gray-200 text-gray-900 text-[9px]">FRAME</span>
+              </div>
+              <div class="font-black text-sm uppercase text-gray-950">10 Ball</div>
+              <div class="text-[11px] font-bold text-gray-800 mt-1 game-rate-display" data-game="10_ball">
+                Rs. 150 / frame
+              </div>
+            </label>
+
+            <!-- One Ball -->
+            <label class="cursor-pointer border-2 border-black p-3.5 block relative select-none gameplay-choice bg-gray-50 hover:bg-gray-100 transition">
+              <input 
+                type="radio" 
+                name="game_type" 
+                value="one_ball" 
+                class="sr-only" 
+                {{ old('game_type') === 'one_ball' ? 'checked' : '' }}
+                onchange="updateGameplaySelectionUI()"
+              >
+              <div class="flex items-center justify-between mb-1">
+                <span class="text-lg">🟡</span>
+                <span class="badge-brutal px-1.5 py-0.5 bg-gray-200 text-gray-900 text-[9px]">FRAME</span>
+              </div>
+              <div class="font-black text-sm uppercase text-gray-950">One Ball</div>
+              <div class="text-[11px] font-bold text-gray-800 mt-1 game-rate-display" data-game="one_ball">
+                Rs. 120 / frame
+              </div>
+            </label>
+
+          </div>
+        </div>
+
+        <!-- 3. Table Selection (with table-specific rates embedded) -->
+        <div class="space-y-2">
+          <label class="block text-xs font-black uppercase tracking-wider text-gray-950">
+            3. Select Table <span class="text-red-600">*</span>
           </label>
           <div class="grid grid-cols-2 sm:grid-cols-3 gap-3">
             @foreach($availableTables as $tbl)
-              <label class="cursor-pointer border-2 border-black p-3 block relative transition select-none table-choice {{ (old('table_id', $selectedTableId) == $tbl->id || ($loop->first && !$selectedTableId)) ? 'bg-brand-yellow shadow-brutal-sm ring-2 ring-black' : 'bg-gray-50 hover:bg-gray-100' }}">
+              <label 
+                class="cursor-pointer border-2 border-black p-3 block relative select-none table-choice {{ (old('table_id', $selectedTableId) == $tbl->id || ($loop->first && !$selectedTableId)) ? 'bg-brand-yellow shadow-brutal-sm ring-2 ring-black' : 'bg-gray-50 hover:bg-gray-100' }}"
+                data-table-id="{{ $tbl->id }}"
+                data-table-name="{{ $tbl->name }}"
+                data-century="{{ $tbl->getRateForGame('century') }}"
+                data-6ball="{{ $tbl->getRateForGame('6_ball') }}"
+                data-10ball="{{ $tbl->getRateForGame('10_ball') }}"
+                data-oneball="{{ $tbl->getRateForGame('one_ball') }}"
+              >
                 <input 
                   type="radio" 
                   name="table_id" 
@@ -106,8 +173,8 @@
                   onchange="updateTableSelectionUI()"
                 >
                 <div class="font-black text-sm uppercase text-gray-950">{{ $tbl->name }}</div>
-                <div class="text-[11px] font-bold text-gray-600 mt-0.5 uppercase">{{ $tbl->type }}</div>
-                <span class="inline-block mt-2 badge-brutal px-1.5 py-0.2 bg-green-100 text-green-950 border-green-700 text-[9px]">
+                <div class="text-[11px] font-bold text-gray-600 uppercase">{{ $tbl->type }}</div>
+                <span class="inline-block mt-2 badge-brutal px-1.5 py-0.5 bg-green-100 text-green-950 border-green-700 text-[9px]">
                   AVAILABLE
                 </span>
               </label>
@@ -115,26 +182,30 @@
           </div>
         </div>
 
-        <!-- Pricing Summary Box -->
+        <!-- 4. Dynamic Billing Summary Box -->
         <div class="card-brutal p-4 bg-gray-50 border-2 border-black space-y-2">
           <div class="flex items-center justify-between text-xs font-bold text-gray-700">
-            <span class="uppercase">Standard Rate Per Frame:</span>
-            <span class="font-mono font-black text-gray-950 text-sm">{{ $currency }} {{ number_format($defaultPrice, 0) }}</span>
+            <span class="uppercase">Selected Table:</span>
+            <span class="font-bold text-gray-950" id="summary-table-name">—</span>
           </div>
           <div class="flex items-center justify-between text-xs font-bold text-gray-700">
-            <span class="uppercase">Initial Frame Count:</span>
-            <span class="font-mono font-bold text-gray-950 text-sm">1 Frame</span>
+            <span class="uppercase">Gameplay Mode:</span>
+            <span class="font-bold text-gray-950" id="summary-game-name">—</span>
+          </div>
+          <div class="flex items-center justify-between text-xs font-bold text-gray-700">
+            <span class="uppercase">Billing Rate:</span>
+            <span class="font-mono font-black text-gray-950 text-sm" id="summary-rate">—</span>
           </div>
           <div class="border-t-2 border-black pt-2 flex items-center justify-between text-sm font-black text-gray-950">
-            <span class="uppercase tracking-wide">Starting Balance:</span>
-            <span class="font-mono text-lg text-black">{{ $currency }} {{ number_format($defaultPrice, 0) }}</span>
+            <span class="uppercase tracking-wide">Initial Price:</span>
+            <span class="font-mono text-lg text-black" id="summary-starting-price">—</span>
           </div>
-          <p class="text-[10px] text-gray-500 font-bold uppercase mt-1">
-            * Frame quantity can be increased anytime during active gameplay with live autosave.
+          <p class="text-[11px] text-gray-600 font-bold mt-1" id="summary-note">
+            <!-- Dynamic note injected by JS -->
           </p>
         </div>
 
-        <!-- Optional Notes -->
+        <!-- 5. Optional Notes -->
         <div class="space-y-1.5">
           <label for="notes" class="block text-xs font-black uppercase tracking-wider text-gray-950">
             Session Notes / Cues <span class="text-gray-500 text-[10px] lowercase font-normal">(optional)</span>
@@ -164,6 +235,17 @@
 
 @push('scripts')
 <script>
+  function getSelectedTableElement() {
+    const checkedRadio = document.querySelector('input[name="table_id"]:checked');
+    if (!checkedRadio) return null;
+    return checkedRadio.closest('.table-choice');
+  }
+
+  function getSelectedGameType() {
+    const checkedRadio = document.querySelector('input[name="game_type"]:checked');
+    return checkedRadio ? checkedRadio.value : 'century';
+  }
+
   function updateTableSelectionUI() {
     document.querySelectorAll('.table-choice').forEach(card => {
       const radio = card.querySelector('input[type="radio"]');
@@ -175,60 +257,85 @@
         card.classList.add('bg-gray-50');
       }
     });
+
+    updateSummaryCalculations();
   }
 
-  // Quick select helper
-  function selectCustomer(name, phone) {
-    document.getElementById('customer_name').value = name;
-    if (phone) {
-      document.getElementById('customer_phone').value = phone;
+  function updateGameplaySelectionUI() {
+    document.querySelectorAll('.gameplay-choice').forEach(card => {
+      const radio = card.querySelector('input[type="radio"]');
+      if (radio.checked) {
+        card.classList.add('bg-brand-yellow', 'shadow-brutal-sm', 'ring-2', 'ring-black');
+        card.classList.remove('bg-gray-50');
+      } else {
+        card.classList.remove('bg-brand-yellow', 'shadow-brutal-sm', 'ring-2', 'ring-black');
+        card.classList.add('bg-gray-50');
+      }
+    });
+
+    updateSummaryCalculations();
+  }
+
+  function updateSummaryCalculations() {
+    const tableEl = getSelectedTableElement();
+    const gameType = getSelectedGameType();
+
+    if (!tableEl) return;
+
+    const tableName = tableEl.dataset.tableName || 'Selected Table';
+    let rate = 0;
+    let unit = '';
+    let gameTitle = '';
+    let note = '';
+
+    if (gameType === 'century') {
+      rate = parseFloat(tableEl.dataset.century) || 10;
+      unit = 'Rs. ' + rate.toFixed(0) + ' / minute';
+      gameTitle = 'Century (Time-Based)';
+      note = '⏱️ Timer runs continuously. Billed at Rs. ' + rate.toFixed(0) + ' per elapsed minute.';
+    } else if (gameType === '6_ball') {
+      rate = parseFloat(tableEl.dataset['6ball']) || 130;
+      unit = 'Rs. ' + rate.toFixed(0) + ' / frame';
+      gameTitle = '6 Ball (Frame-Based)';
+      note = '🎱 Standard 6-red frame. You can add more frames during play.';
+    } else if (gameType === '10_ball') {
+      rate = parseFloat(tableEl.dataset['10ball']) || 150;
+      unit = 'Rs. ' + rate.toFixed(0) + ' / frame';
+      gameTitle = '10 Ball (Frame-Based)';
+      note = '🔴 10-red frame. You can add more frames during play.';
+    } else if (gameType === 'one_ball') {
+      rate = parseFloat(tableEl.dataset.oneball) || 120;
+      unit = 'Rs. ' + rate.toFixed(0) + ' / frame';
+      gameTitle = 'One Ball (Frame-Based)';
+      note = '🟡 Single ball frame. You can add more frames during play.';
     }
-    document.getElementById('customer-suggestions').classList.add('hidden');
+
+    // Update gameplay card rate displays based on current selected table
+    const centuryCardRate = document.querySelector('.game-rate-display[data-game="century"]');
+    if (centuryCardRate) centuryCardRate.innerText = 'Rs. ' + (parseFloat(tableEl.dataset.century) || 10).toFixed(0) + ' / min';
+
+    const ball6CardRate = document.querySelector('.game-rate-display[data-game="6_ball"]');
+    if (ball6CardRate) ball6CardRate.innerText = 'Rs. ' + (parseFloat(tableEl.dataset['6ball']) || 130).toFixed(0) + ' / frame';
+
+    const ball10CardRate = document.querySelector('.game-rate-display[data-game="10_ball"]');
+    if (ball10CardRate) ball10CardRate.innerText = 'Rs. ' + (parseFloat(tableEl.dataset['10ball']) || 150).toFixed(0) + ' / frame';
+
+    const oneBallCardRate = document.querySelector('.game-rate-display[data-game="one_ball"]');
+    if (oneBallCardRate) oneBallCardRate.innerText = 'Rs. ' + (parseFloat(tableEl.dataset.oneball) || 120).toFixed(0) + ' / frame';
+
+    // Update Summary Box
+    document.getElementById('summary-table-name').innerText = tableName;
+    document.getElementById('summary-game-name').innerText = gameTitle;
+    document.getElementById('summary-rate').innerText = unit;
+    document.getElementById('summary-starting-price').innerText = 'Rs. ' + rate.toFixed(0);
+    document.getElementById('summary-note').innerText = note;
   }
 
-  // Live Autocomplete for customer search
-  const custInput = document.getElementById('customer_name');
-  const suggestionsBox = document.getElementById('customer-suggestions');
-  let searchTimeout = null;
-
-  if (custInput) {
-    custInput.addEventListener('input', function() {
-      const query = this.value.trim();
-      clearTimeout(searchTimeout);
-
-      if (query.length < 2) {
-        suggestionsBox.classList.add('hidden');
-        return;
-      }
-
-      searchTimeout = setTimeout(async () => {
-        try {
-          const res = await fetch(`{{ route('customers.search') }}?q=${encodeURIComponent(query)}`);
-          const data = await res.json();
-
-          if (data && data.length > 0) {
-            suggestionsBox.innerHTML = data.map(c => `
-              <div onclick="selectCustomer('${c.name.replace(/'/g, "\\'")}', '${c.phone || ''}')" class="p-2.5 hover:bg-yellow-100 cursor-pointer border-b border-gray-200 text-xs flex justify-between items-center font-bold">
-                <span class="text-gray-900">${c.name}</span>
-                <span class="text-gray-500 font-mono text-[11px]">${c.phone || 'No phone'}</span>
-              </div>
-            `).join('');
-            suggestionsBox.classList.remove('hidden');
-          } else {
-            suggestionsBox.classList.add('hidden');
-          }
-        } catch (e) {
-          console.error(e);
-        }
-      }, 250);
-    });
-
-    document.addEventListener('click', (e) => {
-      if (!custInput.contains(e.target) && !suggestionsBox.contains(e.target)) {
-        suggestionsBox.classList.add('hidden');
-      }
-    });
-  }
+  // Initial Run
+  document.addEventListener('DOMContentLoaded', () => {
+    updateTableSelectionUI();
+    updateGameplaySelectionUI();
+  });
 </script>
 @endpush
 @endsection

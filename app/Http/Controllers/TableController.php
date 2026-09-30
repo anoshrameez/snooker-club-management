@@ -22,11 +22,15 @@ class TableController extends Controller
             'name' => ['required', 'string', 'max:50', 'unique:tables,name'],
             'type' => ['required', 'string', 'max:50'],
             'status' => ['required', 'in:available,maintenance'],
+            'rate_century' => ['nullable', 'numeric', 'min:0'],
+            'rate_6ball' => ['nullable', 'numeric', 'min:0'],
+            'rate_10ball' => ['nullable', 'numeric', 'min:0'],
+            'rate_oneball' => ['nullable', 'numeric', 'min:0'],
         ]);
 
         ClubTable::create($validated);
 
-        return back()->with('success', "Table {$validated['name']} added successfully.");
+        return back()->with('success', "Table {$validated['name']} added with custom rates successfully.");
     }
 
     public function update(Request $request, $id)
@@ -37,6 +41,10 @@ class TableController extends Controller
             'name' => ['required', 'string', 'max:50', 'unique:tables,name,' . $table->id],
             'type' => ['required', 'string', 'max:50'],
             'status' => ['required', 'in:available,occupied,maintenance'],
+            'rate_century' => ['nullable', 'numeric', 'min:0'],
+            'rate_6ball' => ['nullable', 'numeric', 'min:0'],
+            'rate_10ball' => ['nullable', 'numeric', 'min:0'],
+            'rate_oneball' => ['nullable', 'numeric', 'min:0'],
         ]);
 
         // Do not allow setting to available if an active session is linked
@@ -46,6 +54,6 @@ class TableController extends Controller
 
         $table->update($validated);
 
-        return back()->with('success', "Table {$table->name} updated successfully.");
+        return back()->with('success', "Table {$table->name} rates and details updated successfully.");
     }
 }

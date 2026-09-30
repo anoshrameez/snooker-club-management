@@ -10,9 +10,9 @@ use App\Http\Controllers\TableController;
 use App\Http\Controllers\UserController;
 use Illuminate\Support\Facades\Route;
 
-// Public Authentication
+// Public Authentication (Rate limited to prevent brute-force attacks)
 Route::get('/login', [AuthController::class, 'showLogin'])->name('login');
-Route::post('/login', [AuthController::class, 'login'])->name('login.post');
+Route::post('/login', [AuthController::class, 'login'])->middleware('throttle:10,1')->name('login.post');
 Route::post('/logout', [AuthController::class, 'logout'])->name('logout');
 
 // Protected Staff & Admin Routes
@@ -25,6 +25,7 @@ Route::middleware(['auth'])->group(function () {
     Route::get('/sessions/create', [SessionController::class, 'create'])->name('sessions.create');
     Route::post('/sessions', [SessionController::class, 'store'])->name('sessions.store');
     Route::get('/sessions/{id}', [SessionController::class, 'show'])->name('sessions.show');
+    Route::get('/sessions/{id}/live-status', [SessionController::class, 'liveStatus'])->name('sessions.liveStatus');
     Route::post('/sessions/{id}/rounds', [SessionController::class, 'updateRounds'])->name('sessions.updateRounds');
     Route::post('/sessions/{id}/payment', [SessionController::class, 'updatePayment'])->name('sessions.updatePayment');
     Route::post('/sessions/{id}/autosave', [SessionController::class, 'autosave'])->name('sessions.autosave');
@@ -56,6 +57,7 @@ Route::middleware(['auth'])->group(function () {
         // Staff / User Management
         Route::get('/users', [UserController::class, 'index'])->name('users.index');
         Route::post('/users', [UserController::class, 'store'])->name('users.store');
+        Route::put('/users/{id}/password', [UserController::class, 'updatePassword'])->name('users.password');
         Route::post('/users/{id}/toggle', [UserController::class, 'toggleStatus'])->name('users.toggle');
     });
 });

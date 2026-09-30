@@ -9,22 +9,29 @@
   <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 pb-3 border-b-2 border-black">
     <div class="flex items-center gap-3">
       <div class="w-10 h-10 bg-brand-yellow border-2 border-black flex items-center justify-center font-black text-lg shadow-brutal-sm">
-        🎱
+        @if($session->game_type === 'century') ⏱️
+        @elseif($session->game_type === '6_ball') 🎱
+        @elseif($session->game_type === '10_ball') 🔴
+        @else 🟡
+        @endif
       </div>
       <div>
-        <div class="flex items-center gap-2">
+        <div class="flex items-center gap-2 flex-wrap">
           <h1 class="text-xl sm:text-2xl font-black uppercase tracking-tight text-gray-950">
             {{ $session->table->name ?? 'Table' }}
           </h1>
           <span class="badge-brutal px-2.5 py-0.5 bg-black text-brand-yellow text-xs animate-pulse">
             IN PLAY
           </span>
+          <span class="badge-brutal px-2 py-0.5 bg-brand-yellow text-black text-xs font-black">
+            {{ $session->gameTitle() }}
+          </span>
           <span class="font-mono text-xs font-bold text-gray-500">
             #{{ $session->session_code }}
           </span>
         </div>
         <p class="text-xs font-bold text-gray-500 uppercase tracking-wider mt-0.5">
-          {{ $session->table->type ?? 'Standard Snooker' }} • Started at {{ $session->start_time->format('h:i A') }}
+          {{ $session->table->type ?? 'Standard Snooker' }} • Started at {{ $session->start_time->format('h:i A') }} (PKT)
         </p>
       </div>
     </div>
@@ -41,6 +48,21 @@
     </div>
   </div>
 
+  <!-- PERSISTENT TABLE LOCK GUARANTEE BANNER -->
+  <div class="card-brutal p-3 bg-emerald-50 border-2 border-emerald-700 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 shadow-brutal-sm">
+    <div class="flex items-center gap-2.5">
+      <span class="w-2.5 h-2.5 bg-emerald-600 rounded-full inline-block animate-ping shrink-0"></span>
+      <div class="text-xs text-emerald-950">
+        <span class="font-black uppercase tracking-wider text-emerald-900">🟢 TABLE STATUS: LOCKED & PLAYING</span>
+        <span class="text-[11px] text-emerald-800 ml-1.5 font-bold">Match will NEVER stop automatically. Table stays strictly booked until you tap "Finish Match".</span>
+      </div>
+    </div>
+    <a href="{{ route('dashboard') }}" class="btn-brutal px-3 py-1 bg-white hover:bg-emerald-100 text-gray-950 text-xs font-black uppercase tracking-wider flex items-center justify-center gap-1.5 shrink-0 border-2 border-black">
+      <i class="fa-solid fa-arrow-left text-[10px]"></i>
+      <span>Dashboard (Keep Booked)</span>
+    </a>
+  </div>
+
   <!-- MAIN OPERATING CONSOLE (NEO-BRUTALIST POS WORKSPACE) -->
   <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
 
@@ -54,7 +76,7 @@
             <i class="fa-solid fa-stopwatch text-black text-sm"></i>
             <span>LIVE PLAYING TIME</span>
           </span>
-          <span class="font-mono text-[11px] text-gray-400">Server Start: {{ $session->start_time->format('h:i:s A') }}</span>
+          <span class="font-mono text-[11px] text-gray-400">Start: {{ $session->start_time->format('h:i:s A') }}</span>
         </div>
 
         <div class="py-2 text-center sm:text-left">
@@ -67,10 +89,116 @@
         </div>
       </div>
 
-      <!-- 2. CUSTOMER & SESSION DETAILS FORM (AUTOSAVED) -->
+      <!-- 2. GAMEPLAY BILLING CONTROLS -->
+      @if($session->isTimeBased())
+        <!-- CENTURY (TIME-BASED Rs. 10/MIN) -->
+        <div class="card-brutal p-6 bg-yellow-50 border-2 border-black space-y-4">
+          <div class="flex items-center justify-between border-b-2 border-black pb-2">
+            <div>
+              <span class="badge-brutal px-2 py-0.5 bg-black text-brand-yellow text-[10px]">TIME-BASED GAMEPLAY</span>
+              <h2 class="text-base font-black uppercase tracking-tight text-gray-950 mt-1">Century Mode Billing</h2>
+              <p class="text-xs font-bold text-gray-600">Rate: {{ $currency }} {{ number_format($session->rate_applied ?: 10, 0) }} per minute</p>
+            </div>
+            <div class="text-right">
+              <span class="text-[10px] uppercase font-bold text-gray-500 block">Rate / Min:</span>
+              <span class="font-mono font-black text-base text-gray-950">{{ $currency }} {{ number_format($session->rate_applied ?: 10, 0) }}</span>
+            </div>
+          </div>
+
+          <div class="grid grid-cols-2 gap-4 pt-1">
+            <div class="bg-white p-4 border-2 border-black">
+              <span class="text-[10px] uppercase font-bold text-gray-500 block">Billed Minutes:</span>
+              <span id="century-minutes-display" class="font-mono font-black text-3xl text-gray-950 block mt-0.5">
+                {{ $session->elapsedMinutes() }} min
+              </span>
+              <span class="text-[10px] text-gray-500 font-bold block mt-1">Ceil(seconds / 60)</span>
+            </div>
+
+            <div class="bg-white p-4 border-2 border-black">
+              <span class="text-[10px] uppercase font-bold text-gray-500 block">Live Amount:</span>
+              <span id="century-amount-display" class="font-mono font-black text-3xl text-brand-yellow bg-black px-2 py-0.5 inline-block mt-0.5">
+                {{ $currency }} {{ number_format($session->calculateTotal(), 0) }}
+              </span>
+              <span class="text-[10px] text-gray-500 font-bold block mt-1">Updated in real-time</span>
+            </div>
+          </div>
+
+          <div class="p-3 bg-white border border-black text-xs font-bold text-gray-700 flex items-center gap-2">
+            <i class="fa-solid fa-circle-info text-blue-600"></i>
+            <span>Century mode automatically charges per elapsed minute. No manual round entry needed.</span>
+          </div>
+        </div>
+
+      @else
+        <!-- FRAME-BASED (6 BALL, 10 BALL, ONE BALL) -->
+        <div class="card-brutal p-6 bg-white space-y-4">
+          <div class="flex items-center justify-between border-b-2 border-black pb-2">
+            <div>
+              <span class="badge-brutal px-2 py-0.5 bg-gray-200 text-gray-900 text-[10px]">FRAME-BASED GAMEPLAY</span>
+              <h2 class="text-sm font-black uppercase tracking-wider text-gray-950 mt-1">{{ $session->gameTitle() }} Frames Played</h2>
+              <p class="text-xs font-bold text-gray-500">Shopify-style quantity control with real-time recalculation</p>
+            </div>
+            <div class="text-right">
+              <span class="text-[10px] uppercase font-bold text-gray-500 block">Rate / Frame:</span>
+              <span class="font-mono font-black text-sm text-gray-950">{{ $currency }} {{ number_format($session->rate_applied ?: $session->price_per_round, 0) }}</span>
+            </div>
+          </div>
+
+          <div class="pt-2 flex flex-col sm:flex-row items-center justify-between gap-4">
+            <!-- Big Neo-Brutalist Quantity Selector -->
+            <div class="flex items-center border-3 border-black shadow-brutal bg-white select-none">
+              <!-- Minus button -->
+              <button 
+                type="button" 
+                id="btn-minus-round" 
+                onclick="adjustRounds(-1)" 
+                class="w-14 h-14 sm:w-16 sm:h-16 bg-gray-100 hover:bg-gray-200 active:bg-gray-300 border-r-2 border-black text-2xl font-black flex items-center justify-center transition disabled:opacity-40 disabled:cursor-not-allowed"
+                {{ $session->rounds <= 1 ? 'disabled' : '' }}
+                title="Decrease frame"
+              >
+                −
+              </button>
+
+              <!-- Quantity display -->
+              <div class="w-20 sm:w-24 text-center">
+                <span id="rounds-display" class="font-mono font-black text-3xl sm:text-4xl text-gray-950 block">
+                  {{ $session->rounds }}
+                </span>
+                <span class="text-[9px] uppercase font-bold tracking-widest text-gray-400 block -mt-1">
+                  FRAMES
+                </span>
+              </div>
+
+              <!-- Plus button -->
+              <button 
+                type="button" 
+                id="btn-plus-round" 
+                onclick="adjustRounds(1)" 
+                class="w-14 h-14 sm:w-16 sm:h-16 bg-brand-yellow hover:bg-yellow-400 active:bg-yellow-500 border-l-2 border-black text-2xl font-black flex items-center justify-center transition"
+                title="Add frame"
+              >
+                +
+              </button>
+            </div>
+
+            <!-- Formula explainer -->
+            <div class="text-center sm:text-right bg-gray-50 p-3 border-2 border-black w-full sm:w-auto flex-1">
+              <p class="text-xs font-bold text-gray-600 uppercase">Calculation Formula</p>
+              <p class="font-mono font-bold text-sm text-gray-950 mt-0.5">
+                <span id="formula-rounds">{{ $session->rounds }}</span> frames × {{ $currency }}{{ number_format($session->rate_applied ?: $session->price_per_round, 0) }}
+              </p>
+              <p class="text-xs font-black text-gray-950 uppercase mt-1">
+                = <span id="formula-total" class="text-base text-black font-mono font-black">{{ $currency }} {{ number_format($session->total_price, 0) }}</span>
+              </p>
+            </div>
+          </div>
+        </div>
+      @endif
+
+      <!-- 3. CUSTOMER & SESSION DETAILS FORM (AUTOSAVED) -->
       <div class="card-brutal p-6 bg-white space-y-4">
         <h2 class="text-xs font-black uppercase tracking-wider text-gray-950 border-b-2 border-black pb-2 flex items-center justify-between">
-          <span>Customer & Session Details</span>
+          <span>Customer & Notes</span>
           <span class="text-[10px] text-gray-500 lowercase font-normal">changes autosave</span>
         </h2>
 
@@ -86,7 +214,7 @@
             >
           </div>
           <div>
-            <label class="block text-xs font-black uppercase tracking-wider text-gray-700 mb-1">Phone Number</label>
+            <label class="block text-xs font-black uppercase tracking-wider text-gray-700 mb-1">Phone Number (Optional)</label>
             <input 
               type="tel" 
               id="cust-phone-input" 
@@ -111,79 +239,16 @@
         </div>
       </div>
 
-      <!-- 3. ROUND SYSTEM (SHOPIFY QUANTITY STYLE) -->
-      <div class="card-brutal p-6 bg-white space-y-4">
-        <div class="flex items-center justify-between border-b-2 border-black pb-2">
-          <div>
-            <h2 class="text-sm font-black uppercase tracking-wider text-gray-950">Rounds / Frames Played</h2>
-            <p class="text-xs font-bold text-gray-500">Shopify-style quantity control with real-time recalculation</p>
-          </div>
-          <div class="text-right">
-            <span class="text-[10px] uppercase font-bold text-gray-500 block">Rate / Frame:</span>
-            <span class="font-mono font-black text-sm text-gray-950">{{ $currency }} {{ number_format($session->price_per_round, 0) }}</span>
-          </div>
-        </div>
-
-        <div class="pt-2 flex flex-col sm:flex-row items-center justify-between gap-4">
-          <!-- Big Neo-Brutalist Quantity Selector -->
-          <div class="flex items-center border-3 border-black shadow-brutal bg-white select-none">
-            <!-- Minus button -->
-            <button 
-              type="button" 
-              id="btn-minus-round" 
-              onclick="adjustRounds(-1)" 
-              class="w-14 h-14 sm:w-16 sm:h-16 bg-gray-100 hover:bg-gray-200 active:bg-gray-300 border-r-2 border-black text-2xl font-black flex items-center justify-center transition disabled:opacity-40 disabled:cursor-not-allowed"
-              {{ $session->rounds <= 1 ? 'disabled' : '' }}
-              title="Decrease round"
-            >
-              −
-            </button>
-
-            <!-- Quantity display / manual edit -->
-            <div class="w-20 sm:w-24 text-center">
-              <span id="rounds-display" class="font-mono font-black text-3xl sm:text-4xl text-gray-950 block">
-                {{ $session->rounds }}
-              </span>
-              <span class="text-[9px] uppercase font-bold tracking-widest text-gray-400 block -mt-1">
-                FRAMES
-              </span>
-            </div>
-
-            <!-- Plus button -->
-            <button 
-              type="button" 
-              id="btn-plus-round" 
-              onclick="adjustRounds(1)" 
-              class="w-14 h-14 sm:w-16 sm:h-16 bg-brand-yellow hover:bg-yellow-400 active:bg-yellow-500 border-l-2 border-black text-2xl font-black flex items-center justify-center transition"
-              title="Add round"
-            >
-              +
-            </button>
-          </div>
-
-          <!-- Formula explainer -->
-          <div class="text-center sm:text-right bg-gray-50 p-3 border-2 border-black w-full sm:w-auto flex-1">
-            <p class="text-xs font-bold text-gray-600 uppercase">Calculation Formula</p>
-            <p class="font-mono font-bold text-sm text-gray-950 mt-0.5">
-              <span id="formula-rounds">{{ $session->rounds }}</span> frames × {{ $currency }}{{ number_format($session->price_per_round, 0) }}
-            </p>
-            <p class="text-xs font-black text-gray-950 uppercase mt-1">
-              = <span id="formula-total" class="text-base text-black font-mono font-black">{{ $currency }} {{ number_format($session->total_price, 0) }}</span>
-            </p>
-          </div>
-        </div>
-      </div>
-
     </div>
 
-    <!-- RIGHT COLUMN: BILLING, PAYMENT & CHECKOUT (4 Cols) -->
+    <!-- RIGHT COLUMN: BILLING, CASH PAYMENT & CHECKOUT (4 Cols) -->
     <div class="lg:col-span-4 space-y-6">
 
-      <!-- BILL SUMMARY & PAYMENT CARD -->
+      <!-- BILL SUMMARY & CASH PAYMENT CARD -->
       <div class="card-brutal p-6 bg-white space-y-5 border-2 border-black shadow-brutal-lg">
         <h2 class="text-sm font-black uppercase tracking-wider text-gray-950 border-b-2 border-black pb-2 flex items-center justify-between">
           <span>Billing Summary</span>
-          <span class="font-mono text-xs text-gray-500">LIVE</span>
+          <span class="badge-brutal px-1.5 py-0.2 bg-black text-brand-yellow text-[9px]">CASH ONLY</span>
         </h2>
 
         <!-- Breakdown List -->
@@ -194,22 +259,37 @@
           </div>
 
           <div class="flex justify-between items-center text-gray-600 font-bold">
-            <span class="uppercase">Table Assigned:</span>
+            <span class="uppercase">Table:</span>
             <span class="font-black text-gray-950 text-sm">{{ $session->table->name ?? 'Table' }}</span>
           </div>
 
           <div class="flex justify-between items-center text-gray-600 font-bold">
-            <span class="uppercase">Total Frames:</span>
-            <span class="font-mono font-black text-gray-950 text-sm" id="summary-rounds">{{ $session->rounds }}</span>
+            <span class="uppercase">Gameplay:</span>
+            <span class="font-black text-gray-950 text-sm">{{ $session->gameTitle() }}</span>
           </div>
 
-          <div class="flex justify-between items-center text-gray-600 font-bold">
-            <span class="uppercase">Price Per Frame:</span>
-            <span class="font-mono font-black text-gray-950 text-sm">{{ $currency }} {{ number_format($session->price_per_round, 0) }}</span>
-          </div>
+          @if($session->isTimeBased())
+            <div class="flex justify-between items-center text-gray-600 font-bold">
+              <span class="uppercase">Rate:</span>
+              <span class="font-mono font-black text-gray-950 text-sm">{{ $currency }} {{ number_format($session->rate_applied ?: 10, 0) }} / min</span>
+            </div>
+            <div class="flex justify-between items-center text-gray-600 font-bold">
+              <span class="uppercase">Billed Time:</span>
+              <span class="font-mono font-black text-gray-950 text-sm" id="summary-time-minutes">{{ $session->elapsedMinutes() }} min</span>
+            </div>
+          @else
+            <div class="flex justify-between items-center text-gray-600 font-bold">
+              <span class="uppercase">Frames Played:</span>
+              <span class="font-mono font-black text-gray-950 text-sm" id="summary-rounds">{{ $session->rounds }}</span>
+            </div>
+            <div class="flex justify-between items-center text-gray-600 font-bold">
+              <span class="uppercase">Rate / Frame:</span>
+              <span class="font-mono font-black text-gray-950 text-sm">{{ $currency }} {{ number_format($session->rate_applied ?: $session->price_per_round, 0) }}</span>
+            </div>
+          @endif
 
           <div class="flex justify-between items-center text-gray-600 font-bold">
-            <span class="uppercase">Live Duration:</span>
+            <span class="uppercase">Duration:</span>
             <span class="font-mono font-bold text-gray-950" id="summary-duration">--</span>
           </div>
 
@@ -218,18 +298,18 @@
             <div class="flex justify-between items-baseline">
               <span class="text-xs font-black uppercase tracking-wider text-gray-950">TOTAL BILL:</span>
               <span id="summary-grand-total" class="font-mono font-black text-2xl sm:text-3xl text-black">
-                {{ $currency }} {{ number_format($session->total_price, 0) }}
+                {{ $currency }} {{ number_format($session->calculateTotal(), 0) }}
               </span>
             </div>
           </div>
         </div>
 
-        <!-- PAYMENT STATUS TOGGLE: SECTION 11 -->
+        <!-- PAYMENT STATUS TOGGLE: CASH ONLY -->
         <div class="space-y-2 pt-2">
           <label class="block text-xs font-black uppercase tracking-wider text-gray-950 flex justify-between">
-            <span>Payment Status</span>
+            <span>Cash Payment</span>
             <span id="payment-time-label" class="text-[10px] font-mono text-gray-500 font-bold">
-              {{ $session->isPaid() && $session->payment_time ? $session->payment_time->format('h:i A') : '' }}
+              {{ $session->isPaid() && $session->payment_time ? 'Paid at ' . $session->payment_time->format('h:i A') : '' }}
             </span>
           </label>
 
@@ -249,54 +329,144 @@
               type="button" 
               id="btn-status-paid" 
               onclick="setPaymentStatus('paid')" 
-              class="btn-brutal py-3 text-xs uppercase font-black transition flex items-center justify-center gap-1.5 {{ $session->isPaid() ? 'bg-green-500 text-white border-black shadow-brutal-sm' : 'bg-gray-100 text-gray-700 hover:bg-gray-200' }}"
+              class="btn-brutal py-3 text-xs uppercase font-black transition flex items-center justify-center gap-1.5 {{ $session->isPaid() ? 'bg-green-600 text-white border-black shadow-brutal-sm' : 'bg-gray-100 text-gray-700 hover:bg-gray-200' }}"
             >
-              <i class="fa-solid fa-check"></i>
-              <span>PAID</span>
+              <i class="fa-solid fa-money-bill-wave"></i>
+              <span>PAID (CASH)</span>
             </button>
-          </div>
-
-          <!-- Payment Method Choice (When Paid) -->
-          <div id="payment-method-selector" class="{{ $session->isPaid() ? '' : 'hidden' }} pt-2 space-y-1">
-            <label class="block text-[10px] font-black uppercase text-gray-600">Payment Method:</label>
-            <select id="payment-method-select" onchange="triggerPaymentMethodUpdate()" class="w-full input-brutal px-2.5 py-1.5 text-xs font-bold text-gray-900">
-              <option value="cash" {{ $session->payment_method === 'cash' ? 'selected' : '' }}>Cash Counter</option>
-              <option value="online" {{ $session->payment_method === 'online' ? 'selected' : '' }}>Online / UPI / Bank</option>
-              <option value="card" {{ $session->payment_method === 'card' ? 'selected' : '' }}>Card Machine</option>
-            </select>
           </div>
         </div>
 
-        <!-- CHECKOUT & SAVE: SECTION 12 -->
-        <div class="pt-3 border-t-2 border-black space-y-2">
-          <form action="{{ route('sessions.checkout', $session->id) }}" method="POST" id="checkout-form" onsubmit="return confirmCheckout()">
-            @csrf
-            <input type="hidden" name="payment_status" id="form-payment-status" value="{{ $session->payment_status }}">
-            <input type="hidden" name="payment_method" id="form-payment-method" value="{{ $session->payment_method ?? 'cash' }}">
+        <!-- ACTIONS & FINISH MATCH CONTROLS -->
+        <div class="pt-3 border-t-2 border-black space-y-3">
+          <!-- Information message on autosaving -->
+          <div class="p-2.5 bg-blue-50 border border-blue-500 text-blue-950 text-[11px] font-bold flex items-center gap-2">
+            <i class="fa-solid fa-circle-info text-blue-600 shrink-0"></i>
+            <span>All entries autosave continuously. Session remains active in the background.</span>
+          </div>
 
+          <!-- Safe Navigation: Return to Dashboard while leaving table booked -->
+          <a href="{{ route('dashboard') }}" class="w-full btn-brutal py-3 bg-white hover:bg-gray-100 text-gray-950 text-xs font-black uppercase tracking-wider flex items-center justify-center gap-2 border-2 border-black shadow-brutal-sm">
+            <i class="fa-solid fa-arrow-left"></i>
+            <span>Return to Dashboard (Keep Table Booked)</span>
+          </a>
+
+          <!-- Primary Finish Match Button: Requires explicit modal confirmation -->
+          <button 
+            type="button" 
+            onclick="openEndMatchModal()" 
+            id="btn-open-finish-modal"
+            class="w-full btn-brutal py-4 bg-brand-yellow hover:bg-yellow-400 text-black text-sm font-black uppercase tracking-wider flex items-center justify-center gap-2 shadow-brutal border-2 border-black"
+          >
+            <i class="fa-solid fa-flag-checkered text-base"></i>
+            <span>FINISH MATCH & FREE TABLE</span>
+          </button>
+
+          <!-- Safe Discard / Cancel Option -->
+          <div class="text-center pt-1">
             <button 
-              type="submit" 
-              id="btn-checkout-submit" 
-              class="w-full btn-brutal py-4 bg-brand-yellow hover:bg-yellow-400 text-black text-sm font-black uppercase tracking-wider flex items-center justify-center gap-2 shadow-brutal"
+              type="button" 
+              onclick="openCancelModal()" 
+              class="text-xs font-bold text-red-600 hover:text-red-800 underline transition"
             >
-              <i class="fa-solid fa-circle-check text-base"></i>
-              <span>CHECKOUT & SAVE</span>
+              Cancel Match without Billing
             </button>
-          </form>
-
-          <!-- Cancel Session Option -->
-          <form action="{{ route('sessions.cancel', $session->id) }}" method="POST" onsubmit="return confirm('WARNING: Are you sure you want to cancel this session? The table will be immediately freed and this game will not be counted in revenue.')">
-            @csrf
-            <button type="submit" class="w-full btn-brutal py-2 bg-white hover:bg-red-50 text-red-600 text-xs font-bold uppercase transition">
-              Cancel Session
-            </button>
-          </form>
+          </div>
         </div>
 
       </div>
 
     </div>
 
+  </div>
+
+  <!-- 1. END MATCH CONFIRMATION MODAL (NEO-BRUTALIST POS CONFIRMATION) -->
+  <div id="end-match-modal" class="fixed inset-0 bg-black/60 backdrop-blur-xs z-50 hidden flex items-center justify-center p-4">
+    <div class="card-brutal max-w-lg w-full bg-white p-6 border-3 border-black shadow-brutal-lg space-y-4 animate-scale-up">
+      <div class="flex items-center justify-between border-b-2 border-black pb-2">
+        <div class="flex items-center gap-2">
+          <span class="text-2xl">🏁</span>
+          <h3 class="text-base sm:text-lg font-black uppercase text-gray-950">Finish Match & Settle Bill</h3>
+        </div>
+        <button type="button" onclick="closeEndMatchModal()" class="w-8 h-8 bg-gray-100 hover:bg-gray-200 border-2 border-black font-black text-sm flex items-center justify-center">✕</button>
+      </div>
+
+      <div class="p-3 bg-amber-50 border-2 border-amber-600 text-amber-950 text-xs font-bold space-y-1">
+        <p class="font-black uppercase flex items-center gap-1.5">
+          <i class="fa-solid fa-triangle-exclamation text-amber-700"></i>
+          <span>Are the players finished on this table?</span>
+        </p>
+        <p>Once you confirm, the match timer will stop, the final bill will be logged, and <strong>{{ $session->table->name ?? 'the table' }}</strong> will be marked <strong>AVAILABLE</strong> for new customers.</p>
+      </div>
+
+      <!-- Live summary snapshot inside modal -->
+      <div class="bg-gray-50 border-2 border-black p-4 space-y-2 text-xs">
+        <div class="flex justify-between items-center text-gray-600 font-bold">
+          <span class="uppercase">Customer:</span>
+          <span class="font-black text-gray-950 text-sm" id="modal-cust-name">{{ $session->customer->name ?? 'Guest' }}</span>
+        </div>
+        <div class="flex justify-between items-center text-gray-600 font-bold">
+          <span class="uppercase">Table & Game:</span>
+          <span class="font-black text-gray-950">{{ $session->table->name ?? 'Table' }} ({{ $session->gameTitle() }})</span>
+        </div>
+        <div class="flex justify-between items-center text-gray-600 font-bold">
+          <span class="uppercase">Total Playing Time:</span>
+          <span class="font-mono font-bold text-gray-950" id="modal-duration">--</span>
+        </div>
+        <div class="flex justify-between items-center text-gray-600 font-bold">
+          <span class="uppercase">Total Amount:</span>
+          <span class="font-mono font-black text-base text-gray-950" id="modal-total-price">Rs. --</span>
+        </div>
+        <div class="flex justify-between items-center text-gray-600 font-bold">
+          <span class="uppercase">Payment Status:</span>
+          <span class="font-mono font-black text-xs px-2.5 py-0.5" id="modal-payment-badge">UNPAID</span>
+        </div>
+      </div>
+
+      <!-- Two-step submit form with confirm_checkout verification -->
+      <form action="{{ route('sessions.checkout', $session->id, false) }}" method="POST" id="modal-checkout-form">
+        @csrf
+        <input type="hidden" name="confirm_checkout" value="yes">
+        <input type="hidden" name="payment_status" id="modal-input-payment-status" value="{{ $session->payment_status }}">
+
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2">
+          <button type="button" onclick="closeEndMatchModal()" class="btn-brutal py-3 bg-white hover:bg-gray-100 text-black text-xs font-black uppercase tracking-wider">
+            ✕ No, Keep Playing
+          </button>
+          <button type="submit" class="btn-brutal py-3 bg-brand-yellow hover:bg-yellow-400 text-black text-xs font-black uppercase tracking-wider shadow-brutal flex items-center justify-center gap-1.5">
+            <i class="fa-solid fa-check"></i>
+            <span>YES, FINISH & FREE TABLE</span>
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- 2. CANCEL MATCH MODAL -->
+  <div id="cancel-match-modal" class="fixed inset-0 bg-black/60 backdrop-blur-xs z-50 hidden flex items-center justify-center p-4">
+    <div class="card-brutal max-w-md w-full bg-white p-6 border-3 border-black shadow-brutal-lg space-y-4">
+      <div class="flex items-center justify-between border-b-2 border-black pb-2">
+        <h3 class="text-base font-black uppercase text-red-600 flex items-center gap-2">
+          <i class="fa-solid fa-triangle-exclamation"></i>
+          <span>Cancel Match Session</span>
+        </h3>
+        <button type="button" onclick="closeCancelModal()" class="w-8 h-8 bg-gray-100 hover:bg-gray-200 border-2 border-black font-black text-sm flex items-center justify-center">✕</button>
+      </div>
+      <p class="text-xs font-bold text-gray-700">
+        Are you sure you want to cancel this session? No bill will be recorded, and <strong>{{ $session->table->name ?? 'this table' }}</strong> will immediately become available.
+      </p>
+      <form action="{{ route('sessions.cancel', $session->id, false) }}" method="POST">
+        @csrf
+        <div class="grid grid-cols-2 gap-3 pt-2">
+          <button type="button" onclick="closeCancelModal()" class="btn-brutal py-2.5 bg-white hover:bg-gray-100 text-black text-xs font-black uppercase">
+            Keep Playing
+          </button>
+          <button type="submit" class="btn-brutal py-2.5 bg-red-600 hover:bg-red-700 text-white text-xs font-black uppercase shadow-brutal">
+            Yes, Cancel Match
+          </button>
+        </div>
+      </form>
+    </div>
   </div>
 
 </div>
@@ -307,15 +477,15 @@
   const SESSION_ID = {{ $session->id }};
   const CSRF_TOKEN = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
   const START_TIMESTAMP = new Date("{{ $session->start_time->toISOString() }}").getTime();
-  const PRICE_PER_ROUND = {{ $session->price_per_round }};
+  const IS_TIME_BASED = {{ $session->isTimeBased() ? 'true' : 'false' }};
+  const RATE_APPLIED = {{ (float) ($session->rate_applied ?: $session->price_per_round) }};
   const CURRENCY = "{{ $currency }}";
 
   let currentRounds = {{ $session->rounds }};
   let currentPaymentStatus = "{{ $session->payment_status }}";
-  let currentPaymentMethod = "{{ $session->payment_method ?? 'cash' }}";
 
   // ==========================================
-  // 1. LIVE PLAYING TIMER (SECTION 10)
+  // 1. LIVE PLAYING TIMER & CENTURY PRICE
   // ==========================================
   function updateLiveTimer() {
     const now = new Date().getTime();
@@ -334,17 +504,53 @@
 
     const summaryEl = document.getElementById('summary-duration');
     if (summaryEl) summaryEl.innerText = hrs > 0 ? `${hrs}h ${mins}m ${secs}s` : `${mins}m ${secs}s`;
+
+    // If Century (Time-Based), dynamically compute and tick live price
+    if (IS_TIME_BASED) {
+      const elapsedMins = Math.max(1, Math.ceil(diffSec / 60));
+      const liveTotal = elapsedMins * RATE_APPLIED;
+      const formattedTotal = CURRENCY + ' ' + liveTotal.toLocaleString();
+
+      const minsEl = document.getElementById('century-minutes-display');
+      if (minsEl) minsEl.innerText = elapsedMins + ' min';
+
+      const sumMinsEl = document.getElementById('summary-time-minutes');
+      if (sumMinsEl) sumMinsEl.innerText = elapsedMins + ' min';
+
+      const amtEl = document.getElementById('century-amount-display');
+      if (amtEl) amtEl.innerText = formattedTotal;
+
+      const grandTotalEl = document.getElementById('summary-grand-total');
+      if (grandTotalEl) grandTotalEl.innerText = formattedTotal;
+    }
   }
 
   setInterval(updateLiveTimer, 1000);
   updateLiveTimer();
 
+  // Periodic background sync with server every 15s to keep perfectly in sync
+  setInterval(async () => {
+    try {
+      const res = await fetch(`/sessions/${SESSION_ID}/live-status`);
+      const data = await res.json();
+      if (data && data.status === 'active') {
+        if (!IS_TIME_BASED) {
+          currentRounds = data.rounds;
+          const roundsDisplay = document.getElementById('rounds-display');
+          if (roundsDisplay) roundsDisplay.innerText = currentRounds;
+        }
+        document.getElementById('summary-grand-total').innerText = data.formatted_total;
+      }
+    } catch(e) {}
+  }, 15000);
+
   // ==========================================
-  // 2. ROUND SYSTEM (SECTION 8)
+  // 2. ROUND SYSTEM (FOR FRAME-BASED GAMES)
   // ==========================================
   async function adjustRounds(delta) {
+    if (IS_TIME_BASED) return;
     const newQty = currentRounds + delta;
-    if (newQty < 1) return; // Never allow below 1 for active session
+    if (newQty < 1) return;
 
     setAutosaveState('saving');
 
@@ -362,7 +568,6 @@
       const data = await res.json();
       if (!data.success) throw new Error(data.message || 'Error updating rounds');
 
-      // Update state & UI
       currentRounds = data.rounds;
       document.getElementById('rounds-display').innerText = currentRounds;
       document.getElementById('formula-rounds').innerText = currentRounds;
@@ -370,8 +575,8 @@
       document.getElementById('formula-total').innerText = data.formatted_total;
       document.getElementById('summary-grand-total').innerText = data.formatted_total;
 
-      // Update minus button disabled state
-      document.getElementById('btn-minus-round').disabled = (currentRounds <= 1);
+      const btnMinus = document.getElementById('btn-minus-round');
+      if (btnMinus) btnMinus.disabled = (currentRounds <= 1);
 
       setAutosaveState('saved', data.saved_at);
     } catch (err) {
@@ -382,11 +587,10 @@
   }
 
   // ==========================================
-  // 3. PAYMENT STATUS TOGGLE (SECTION 11)
+  // 3. PAYMENT STATUS TOGGLE (CASH ONLY)
   // ==========================================
   async function setPaymentStatus(status) {
     setAutosaveState('saving');
-    const method = document.getElementById('payment-method-select')?.value || 'cash';
 
     try {
       const res = await fetch(`/sessions/${SESSION_ID}/payment`, {
@@ -396,7 +600,7 @@
           'X-CSRF-TOKEN': CSRF_TOKEN,
           'Accept': 'application/json'
         },
-        body: JSON.stringify({ payment_status: status, payment_method: method })
+        body: JSON.stringify({ payment_status: status })
       });
 
       const data = await res.json();
@@ -405,21 +609,17 @@
       currentPaymentStatus = status;
       document.getElementById('form-payment-status').value = status;
 
-      // Update Button Styles
       const btnUnpaid = document.getElementById('btn-status-unpaid');
       const btnPaid = document.getElementById('btn-status-paid');
-      const methodBox = document.getElementById('payment-method-selector');
       const timeLabel = document.getElementById('payment-time-label');
 
       if (status === 'paid') {
-        btnPaid.className = 'btn-brutal py-3 text-xs uppercase font-black transition flex items-center justify-center gap-1.5 bg-green-500 text-white border-black shadow-brutal-sm';
+        btnPaid.className = 'btn-brutal py-3 text-xs uppercase font-black transition flex items-center justify-center gap-1.5 bg-green-600 text-white border-black shadow-brutal-sm';
         btnUnpaid.className = 'btn-brutal py-3 text-xs uppercase font-black transition flex items-center justify-center gap-1.5 bg-gray-100 text-gray-700 hover:bg-gray-200';
-        methodBox.classList.remove('hidden');
-        timeLabel.innerText = data.payment_time ? `Paid at ${data.payment_time}` : '';
+        timeLabel.innerText = data.payment_time ? `Paid at ${data.payment_time}` : 'Paid';
       } else {
         btnUnpaid.className = 'btn-brutal py-3 text-xs uppercase font-black transition flex items-center justify-center gap-1.5 bg-red-500 text-white border-black shadow-brutal-sm';
         btnPaid.className = 'btn-brutal py-3 text-xs uppercase font-black transition flex items-center justify-center gap-1.5 bg-gray-100 text-gray-700 hover:bg-gray-200';
-        methodBox.classList.add('hidden');
         timeLabel.innerText = '';
       }
 
@@ -431,16 +631,8 @@
     }
   }
 
-  function triggerPaymentMethodUpdate() {
-    if (currentPaymentStatus === 'paid') {
-      const method = document.getElementById('payment-method-select').value;
-      document.getElementById('form-payment-method').value = method;
-      setPaymentStatus('paid');
-    }
-  }
-
   // ==========================================
-  // 4. AUTOSAVE SYSTEM (SECTION 13)
+  // 4. AUTOSAVE SYSTEM
   // ==========================================
   let autosaveTimeout = null;
 
@@ -502,15 +694,53 @@
   }
 
   // ==========================================
-  // 5. CHECKOUT CONFIRMATION (SECTION 12)
+  // 5. MODAL MANAGEMENT (END MATCH & CANCEL)
   // ==========================================
-  function confirmCheckout() {
+  function openEndMatchModal() {
     const total = document.getElementById('summary-grand-total').innerText;
-    const payment = currentPaymentStatus.toUpperCase();
+    const duration = document.getElementById('summary-duration').innerText;
+    const custName = document.getElementById('summary-cust-name').innerText;
 
-    const msg = `Are you sure you want to finish this session?\n\nCustomer: ${document.getElementById('summary-cust-name').innerText}\nRounds: ${currentRounds} frame(s)\nTotal Bill: ${total}\nPayment Status: ${payment}\n\nTable will be marked AVAILABLE.`;
-    return confirm(msg);
+    document.getElementById('modal-cust-name').innerText = custName;
+    document.getElementById('modal-duration').innerText = duration;
+    document.getElementById('modal-total-price').innerText = total;
+
+    const badge = document.getElementById('modal-payment-badge');
+    const modalInput = document.getElementById('modal-input-payment-status');
+    if (modalInput) modalInput.value = currentPaymentStatus;
+
+    if (badge) {
+      if (currentPaymentStatus === 'paid') {
+        badge.className = 'font-mono font-black text-xs px-2.5 py-0.5 bg-green-600 text-white';
+        badge.innerText = 'PAID (CASH)';
+      } else {
+        badge.className = 'font-mono font-black text-xs px-2.5 py-0.5 bg-red-600 text-white';
+        badge.innerText = 'UNPAID';
+      }
+    }
+
+    document.getElementById('end-match-modal').classList.remove('hidden');
   }
+
+  function closeEndMatchModal() {
+    document.getElementById('end-match-modal').classList.add('hidden');
+  }
+
+  function openCancelModal() {
+    document.getElementById('cancel-match-modal').classList.remove('hidden');
+  }
+
+  function closeCancelModal() {
+    document.getElementById('cancel-match-modal').classList.add('hidden');
+  }
+
+  // Close modals on escape key
+  document.addEventListener('keydown', function(e) {
+    if (e.key === 'Escape') {
+      closeEndMatchModal();
+      closeCancelModal();
+    }
+  });
 </script>
 @endpush
 @endsection

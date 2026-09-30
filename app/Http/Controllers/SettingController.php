@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\ClubTable;
 use App\Models\Setting;
 use Illuminate\Http\Request;
 
@@ -10,20 +11,28 @@ class SettingController extends Controller
     public function index()
     {
         $settings = [
-            'price_per_round' => Setting::get('price_per_round', '500'),
+            'rate_century' => Setting::get('rate_century', '10'),
+            'rate_6ball' => Setting::get('rate_6ball', '130'),
+            'rate_10ball' => Setting::get('rate_10ball', '150'),
+            'rate_oneball' => Setting::get('rate_oneball', '120'),
             'club_name' => Setting::get('club_name', 'CueMaster Snooker Club'),
             'currency' => Setting::get('currency', 'Rs.'),
             'club_phone' => Setting::get('club_phone', ''),
             'club_address' => Setting::get('club_address', ''),
         ];
 
-        return view('settings.index', compact('settings'));
+        $tables = ClubTable::orderBy('id')->get();
+
+        return view('settings.index', compact('settings', 'tables'));
     }
 
     public function update(Request $request)
     {
         $validated = $request->validate([
-            'price_per_round' => ['required', 'numeric', 'min:1'],
+            'rate_century' => ['required', 'numeric', 'min:1'],
+            'rate_6ball' => ['required', 'numeric', 'min:1'],
+            'rate_10ball' => ['required', 'numeric', 'min:1'],
+            'rate_oneball' => ['required', 'numeric', 'min:1'],
             'club_name' => ['required', 'string', 'max:100'],
             'currency' => ['required', 'string', 'max:10'],
             'club_phone' => ['nullable', 'string', 'max:50'],
@@ -34,6 +43,6 @@ class SettingController extends Controller
             Setting::set($key, $value);
         }
 
-        return back()->with('success', 'Club settings updated successfully. New sessions will use this updated price per round.');
+        return back()->with('success', 'Default club gameplay prices and settings updated successfully.');
     }
 }

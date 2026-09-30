@@ -13,8 +13,13 @@ class ReportController extends Controller
 {
     public function index(Request $request)
     {
-        $fromDate = $request->input('from_date', Carbon::today()->toDateString());
-        $toDate = $request->input('to_date', Carbon::today()->toDateString());
+        try {
+            $fromDate = Carbon::parse($request->input('from_date', Carbon::today()->toDateString()))->toDateString();
+            $toDate = Carbon::parse($request->input('to_date', Carbon::today()->toDateString()))->toDateString();
+        } catch (\Exception $e) {
+            $fromDate = Carbon::today()->toDateString();
+            $toDate = Carbon::today()->toDateString();
+        }
 
         $query = GameSession::whereDate('start_time', '>=', $fromDate)
             ->whereDate('start_time', '<=', $toDate)
@@ -54,6 +59,14 @@ class ReportController extends Controller
             ->groupBy('payment_method')
             ->get();
 
+        // Gameplay breakdown
+        $gameplayBreakdown = GameSession::whereDate('start_time', '>=', $fromDate)
+            ->whereDate('start_time', '<=', $toDate)
+            ->where('status', '!=', 'cancelled')
+            ->select('game_type', DB::raw('COUNT(*) as sessions_count'), DB::raw('COALESCE(SUM(total_price), 0) as total_revenue'))
+            ->groupBy('game_type')
+            ->get();
+
         $currency = Setting::get('currency', 'Rs.');
         $clubName = Setting::get('club_name', 'CueMaster Snooker Club');
 
@@ -67,6 +80,7 @@ class ReportController extends Controller
             'unpaidAmount',
             'tableUsage',
             'paymentMethods',
+            'gameplayBreakdown',
             'currency',
             'clubName'
         ));

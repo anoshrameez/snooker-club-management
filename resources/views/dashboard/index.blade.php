@@ -12,12 +12,12 @@
         <span>Reception Dashboard</span>
       </h1>
       <p class="text-xs font-bold text-gray-600 uppercase tracking-widest mt-0.5">
-        Live Counter • {{ \Carbon\Carbon::now()->format('l, d M Y') }}
+        Live Operations • {{ \Carbon\Carbon::now()->format('l, d M Y') }} (PKT)
       </p>
     </div>
     <div class="flex items-center gap-3">
       <a href="{{ route('sessions.create') }}" class="btn-brutal px-6 py-3 bg-brand-yellow hover:bg-yellow-400 text-black text-sm uppercase tracking-wider flex items-center gap-2">
-        <i class="fa-solid fa-plus text-base"></i>
+        <i class="fa-solid fa-play text-xs"></i>
         <span>+ NEW SESSION</span>
       </a>
     </div>
@@ -34,7 +34,7 @@
           </div>
           <div>
             <div class="flex items-center gap-2">
-              <span class="badge-brutal px-2 py-0.5 bg-black text-white text-[11px]">ACTIVE SESSION FOUND</span>
+              <span class="badge-brutal px-2 py-0.5 bg-black text-white text-[11px]">ACTIVE SESSION RUNNING</span>
               <span class="font-bold text-xs text-amber-900">{{ $activeSessions->count() }} table(s) in play</span>
             </div>
             <div class="mt-2 grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs">
@@ -43,46 +43,42 @@
                 <span class="font-black text-sm text-gray-950">{{ $primaryActive->customer->name ?? 'Guest' }}</span>
               </div>
               <div>
-                <span class="text-gray-500 font-bold block uppercase text-[10px]">Table:</span>
-                <span class="font-black text-sm text-gray-950">{{ $primaryActive->table->name ?? 'Table' }}</span>
+                <span class="text-gray-500 font-bold block uppercase text-[10px]">Table / Mode:</span>
+                <span class="font-black text-sm text-gray-950">{{ $primaryActive->table->name ?? 'Table' }} ({{ $primaryActive->gameTitle() }})</span>
               </div>
               <div>
-                <span class="text-gray-500 font-bold block uppercase text-[10px]">Rounds:</span>
-                <span class="font-black text-sm text-gray-950">{{ $primaryActive->rounds }} Frame(s)</span>
-              </div>
-              <div>
-                <span class="text-gray-500 font-bold block uppercase text-[10px]">Live Playing Time:</span>
-                <span class="font-mono font-black text-sm text-amber-700 recovery-timer" data-start="{{ $primaryActive->start_time->toISOString() }}">
+                <span class="text-gray-500 font-bold block uppercase text-[10px]">Playing Time:</span>
+                <span class="font-mono font-black text-sm text-amber-800 recovery-timer" data-start="{{ $primaryActive->start_time->toISOString() }}">
                   {{ $primaryActive->timerClockString() }}
+                </span>
+              </div>
+              <div>
+                <span class="text-gray-500 font-bold block uppercase text-[10px]">Current Bill:</span>
+                <span class="font-mono font-black text-sm text-black">
+                  {{ $currency }} {{ number_format($primaryActive->calculateTotal(), 0) }}
                 </span>
               </div>
             </div>
           </div>
         </div>
-        <div class="flex items-center gap-2">
-          <a href="{{ route('sessions.show', $primaryActive->id) }}" class="btn-brutal px-5 py-2.5 bg-brand-yellow hover:bg-yellow-400 text-black text-xs font-black uppercase tracking-wide flex items-center gap-1.5">
-            <i class="fa-solid fa-arrow-right"></i>
-            <span>CONTINUE SESSION</span>
+        <div class="flex items-center gap-2 shrink-0">
+          <a href="{{ route('sessions.show', $primaryActive->id) }}" class="btn-brutal px-6 py-3 bg-brand-yellow hover:bg-yellow-400 text-black text-xs font-black uppercase tracking-wider flex items-center gap-2 shadow-brutal">
+            <i class="fa-solid fa-play text-xs"></i>
+            <span>OPEN & MANAGE SESSION ➔</span>
           </a>
-          <form action="{{ route('sessions.cancel', $primaryActive->id) }}" method="POST" onsubmit="return confirm('Are you sure you want to cancel this active session? Table will be released.')">
-            @csrf
-            <button type="submit" class="btn-brutal px-3 py-2.5 bg-white hover:bg-red-50 text-red-600 text-xs font-bold uppercase">
-              CANCEL
-            </button>
-          </form>
         </div>
       </div>
     </div>
   @endif
 
-  <!-- SECTION 6: TODAY'S STATISTICS -->
+  <!-- TODAY'S METRICS -->
   <div class="space-y-2">
     <h2 class="text-xs font-black uppercase tracking-widest text-gray-700 flex items-center gap-1.5">
       <i class="fa-solid fa-calendar-day"></i>
-      <span>TODAY'S OVERVIEW</span>
+      <span>TODAY'S CASH & PLAY SUMMARY</span>
     </h2>
 
-    <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3 sm:gap-4">
+    <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3 sm:gap-4">
       <!-- Sessions -->
       <div class="card-brutal p-4 bg-white">
         <p class="text-[11px] font-black uppercase text-gray-500 tracking-wider">Sessions</p>
@@ -90,45 +86,38 @@
         <p class="text-[10px] font-bold text-gray-400 mt-1 uppercase">Today</p>
       </div>
 
-      <!-- Rounds -->
-      <div class="card-brutal p-4 bg-white">
-        <p class="text-[11px] font-black uppercase text-gray-500 tracking-wider">Rounds</p>
-        <p class="text-3xl font-black text-gray-950 font-mono mt-1">{{ $totalRounds }}</p>
-        <p class="text-[10px] font-bold text-gray-400 mt-1 uppercase">Frames played</p>
+      <!-- Active Tables -->
+      <div class="card-brutal p-4 bg-yellow-50 border-black">
+        <p class="text-[11px] font-black uppercase text-gray-700 tracking-wider">Active Tables</p>
+        <p class="text-3xl font-black text-black font-mono mt-1">{{ $activeTablesCount }}</p>
+        <p class="text-[10px] font-bold text-gray-500 mt-1 uppercase">In play right now</p>
       </div>
 
-      <!-- Revenue -->
+      <!-- Total Revenue -->
       <div class="card-brutal p-4 bg-white border-brand-yellow">
-        <p class="text-[11px] font-black uppercase text-gray-500 tracking-wider">Revenue</p>
+        <p class="text-[11px] font-black uppercase text-gray-500 tracking-wider">Total Sales</p>
         <p class="text-2xl sm:text-3xl font-black text-gray-950 font-mono mt-1 truncate" title="{{ $currency }} {{ number_format($totalRevenue, 0) }}">
           {{ $currency }} {{ number_format($totalRevenue, 0) }}
         </p>
-        <p class="text-[10px] font-bold text-gray-400 mt-1 uppercase">Total sales</p>
+        <p class="text-[10px] font-bold text-gray-400 mt-1 uppercase">All gameplays</p>
       </div>
 
-      <!-- Paid -->
+      <!-- Cash Received -->
       <div class="card-brutal p-4 bg-green-50 border-green-700">
-        <p class="text-[11px] font-black uppercase text-green-800 tracking-wider">Paid</p>
+        <p class="text-[11px] font-black uppercase text-green-800 tracking-wider">Cash Received</p>
         <p class="text-2xl sm:text-3xl font-black text-green-900 font-mono mt-1 truncate">
           {{ $currency }} {{ number_format($paidAmount, 0) }}
         </p>
-        <p class="text-[10px] font-bold text-green-700 mt-1 uppercase">Received</p>
+        <p class="text-[10px] font-bold text-green-700 mt-1 uppercase">Paid in cash</p>
       </div>
 
       <!-- Unpaid -->
       <div class="card-brutal p-4 bg-red-50 border-red-700">
-        <p class="text-[11px] font-black uppercase text-red-800 tracking-wider">Unpaid</p>
+        <p class="text-[11px] font-black uppercase text-red-800 tracking-wider">Unpaid Cash</p>
         <p class="text-2xl sm:text-3xl font-black text-red-900 font-mono mt-1 truncate">
           {{ $currency }} {{ number_format($unpaidAmount, 0) }}
         </p>
         <p class="text-[10px] font-bold text-red-700 mt-1 uppercase">Outstanding</p>
-      </div>
-
-      <!-- Active Tables -->
-      <div class="card-brutal p-4 bg-amber-50 border-black">
-        <p class="text-[11px] font-black uppercase text-gray-700 tracking-wider">Active Tables</p>
-        <p class="text-3xl font-black text-amber-600 font-mono mt-1">{{ $activeTablesCount }}</p>
-        <p class="text-[10px] font-bold text-gray-500 mt-1 uppercase">In play right now</p>
       </div>
     </div>
   </div>
@@ -138,7 +127,7 @@
     <div class="flex items-center justify-between">
       <h2 class="text-sm font-black uppercase tracking-wider text-gray-900 flex items-center gap-2">
         <i class="fa-solid fa-border-all"></i>
-        <span>Tables Live Status</span>
+        <span>Tables Real-Time Status</span>
       </h2>
       <span class="text-xs font-bold text-gray-500">
         Click any occupied table to open & control session
@@ -169,31 +158,43 @@
             </div>
 
             <!-- Customer & Live Timer Info -->
-            <div class="py-4 space-y-2.5">
-              <div class="flex justify-between items-center text-sm">
-                <span class="text-xs font-bold uppercase text-gray-600">Player:</span>
-                <span class="font-black text-base text-gray-950">{{ $sess->customer->name ?? 'Guest' }}</span>
+            <div class="py-4 space-y-2 text-xs">
+              <div class="flex justify-between items-center">
+                <span class="font-bold uppercase text-gray-600">Player:</span>
+                <span class="font-black text-sm text-gray-950">{{ $sess->customer->name ?? 'Guest' }}</span>
               </div>
 
-              <div class="flex justify-between items-center text-sm">
-                <span class="text-xs font-bold uppercase text-gray-600">Live Playing Time:</span>
+              <div class="flex justify-between items-center">
+                <span class="font-bold uppercase text-gray-600">Mode:</span>
+                <span class="font-black text-xs text-black">{{ $sess->gameTitle() }}</span>
+              </div>
+
+              <div class="flex justify-between items-center">
+                <span class="font-bold uppercase text-gray-600">Live Time:</span>
                 <span class="font-mono font-bold text-sm text-gray-950 live-dashboard-timer" data-start="{{ $sess->start_time->toISOString() }}">
                   {{ $sess->formattedDuration() }}
                 </span>
               </div>
 
-              <div class="flex justify-between items-center text-sm">
-                <span class="text-xs font-bold uppercase text-gray-600">Rounds / Frames:</span>
-                <span class="font-mono font-bold text-sm text-gray-950">{{ $sess->rounds }} frame(s)</span>
-              </div>
+              @if($sess->isTimeBased())
+                <div class="flex justify-between items-center">
+                  <span class="font-bold uppercase text-gray-600">Rate:</span>
+                  <span class="font-mono font-bold text-gray-950">{{ $currency }} {{ number_format($sess->rate_applied ?: 10, 0) }} / min</span>
+                </div>
+              @else
+                <div class="flex justify-between items-center">
+                  <span class="font-bold uppercase text-gray-600">Frames:</span>
+                  <span class="font-mono font-bold text-gray-950">{{ $sess->rounds }} frame(s)</span>
+                </div>
+              @endif
 
               <div class="pt-2 border-t-2 border-black/20 flex justify-between items-center">
-                <span class="text-xs font-black uppercase text-gray-700">Running Total:</span>
-                <span class="font-mono font-black text-lg text-black">{{ $currency }} {{ number_format($sess->total_price, 0) }}</span>
+                <span class="font-black uppercase text-gray-700">Current Total:</span>
+                <span class="font-mono font-black text-base text-black">{{ $currency }} {{ number_format($sess->calculateTotal(), 0) }}</span>
               </div>
             </div>
 
-            <div class="pt-2">
+            <div class="pt-1">
               <div class="btn-brutal w-full py-2 bg-black text-white text-xs font-black uppercase text-center flex items-center justify-center gap-2 group-hover:bg-gray-900">
                 <span>Manage Table</span>
                 <i class="fa-solid fa-arrow-right text-xs"></i>
@@ -215,7 +216,7 @@
             </div>
             <div class="py-6 text-center text-xs font-bold text-gray-500 uppercase">
               <i class="fa-solid fa-wrench text-2xl mb-2 text-gray-400 block"></i>
-              Under Servicing / Felt Care
+              Under Maintenance
             </div>
           </div>
 
@@ -233,14 +234,21 @@
                 </span>
               </div>
 
-              <div class="py-4 space-y-1 text-xs">
-                <div class="flex justify-between text-gray-600">
-                  <span class="font-bold uppercase">Rate per Frame:</span>
-                  <span class="font-mono font-bold text-gray-900">{{ $currency }} {{ number_format($pricePerRound, 0) }}</span>
-                </div>
-                <div class="flex justify-between text-gray-600">
-                  <span class="font-bold uppercase">Status:</span>
-                  <span class="font-bold text-green-700">Ready for play</span>
+              <!-- Rates Grid -->
+              <div class="py-3 space-y-1.5 text-[11px]">
+                <div class="grid grid-cols-2 gap-1.5 font-bold text-gray-700">
+                  <div class="bg-gray-50 p-1 border border-gray-200">
+                    ⏱️ Century: <span class="font-mono font-black text-black">Rs.{{ number_format($table->getRateForGame('century'), 0) }}/m</span>
+                  </div>
+                  <div class="bg-gray-50 p-1 border border-gray-200">
+                    🎱 6 Ball: <span class="font-mono font-black text-black">Rs.{{ number_format($table->getRateForGame('6_ball'), 0) }}</span>
+                  </div>
+                  <div class="bg-gray-50 p-1 border border-gray-200">
+                    🔴 10 Ball: <span class="font-mono font-black text-black">Rs.{{ number_format($table->getRateForGame('10_ball'), 0) }}</span>
+                  </div>
+                  <div class="bg-gray-50 p-1 border border-gray-200">
+                    🟡 One Ball: <span class="font-mono font-black text-black">Rs.{{ number_format($table->getRateForGame('one_ball'), 0) }}</span>
+                  </div>
                 </div>
               </div>
             </div>
@@ -281,11 +289,11 @@
             <th class="p-3">Session Code</th>
             <th class="p-3">Customer</th>
             <th class="p-3">Table</th>
-            <th class="p-3">Frames</th>
+            <th class="p-3">Gameplay</th>
             <th class="p-3">Duration</th>
-            <th class="p-3">Total</th>
+            <th class="p-3">Total (Cash)</th>
             <th class="p-3">Payment</th>
-            <th class="p-3 text-right">Action</th>
+            <th class="p-3 text-right">Receipt</th>
           </tr>
         </thead>
         <tbody class="divide-y-2 divide-gray-200 font-medium">
@@ -294,12 +302,16 @@
               <td class="p-3 font-mono font-bold">{{ $rs->session_code }}</td>
               <td class="p-3 font-bold text-gray-950">{{ $rs->customer->name ?? 'Guest' }}</td>
               <td class="p-3 font-bold">{{ $rs->table->name ?? 'Table' }}</td>
-              <td class="p-3 font-mono">{{ $rs->rounds }}</td>
+              <td class="p-3">
+                <span class="badge-brutal px-2 py-0.5 text-[9px] bg-black text-brand-yellow font-black">
+                  {{ $rs->gameTitle() }}
+                </span>
+              </td>
               <td class="p-3 font-mono">{{ $rs->formattedDuration() }}</td>
-              <td class="p-3 font-mono font-bold">{{ $currency }} {{ number_format($rs->total_price, 0) }}</td>
+              <td class="p-3 font-mono font-bold text-black">{{ $currency }} {{ number_format($rs->total_price, 0) }}</td>
               <td class="p-3">
                 <span class="badge-brutal px-2 py-0.5 text-[10px] {{ $rs->isPaid() ? 'bg-green-100 text-green-950 border-green-700' : 'bg-red-100 text-red-950 border-red-700' }}">
-                  {{ $rs->payment_status }}
+                  {{ strtoupper($rs->payment_status) }}
                 </span>
               </td>
               <td class="p-3 text-right">
@@ -324,7 +336,6 @@
 
 @push('scripts')
 <script>
-  // Live ticker for active tables on dashboard
   function updateDashboardTimers() {
     const timers = document.querySelectorAll('.live-dashboard-timer, .recovery-timer');
     const now = new Date().getTime();

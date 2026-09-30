@@ -57,14 +57,17 @@ class CustomerController extends Controller
      */
     public function search(Request $request)
     {
-        $query = trim($request->get('q', ''));
+        $rawQuery = substr(trim($request->get('q', '')), 0, 50);
 
-        if (strlen($query) < 1) {
+        if (strlen($rawQuery) < 1) {
             return response()->json([]);
         }
 
-        $customers = Customer::where('name', 'like', "%{$query}%")
-            ->orWhere('phone', 'like', "%{$query}%")
+        // Escape SQL LIKE wildcard characters to prevent pattern matching abuse
+        $escaped = str_replace(['\\', '%', '_'], ['\\\\', '\%', '\_'], $rawQuery);
+
+        $customers = Customer::where('name', 'like', "%{$escaped}%")
+            ->orWhere('phone', 'like', "%{$escaped}%")
             ->limit(10)
             ->get(['id', 'name', 'phone']);
 

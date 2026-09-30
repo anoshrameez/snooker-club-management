@@ -75,16 +75,48 @@ class SessionController extends Controller
             ->get();
 
         $selectedTableId = $request->query('table_id');
-        $defaultPrice = (float) Setting::get('price_per_round', 500);
         $currency = Setting::get('currency', 'Rs.');
-        $recentCustomers = Customer::latest()->limit(8)->get();
+
+        $gameTypes = [
+            'century' => [
+                'id' => 'century',
+                'name' => 'Century',
+                'type' => 'time',
+                'badge' => 'Rs. 10 / min',
+                'desc' => 'Time-based billing (Rs. 10 per minute)',
+                'default_rate' => (float) Setting::get('rate_century', 10),
+            ],
+            '6_ball' => [
+                'id' => '6_ball',
+                'name' => '6 Ball',
+                'type' => 'frame',
+                'badge' => 'Rs. 130 / frame',
+                'desc' => '6-Red frame (Rs. 130 per frame)',
+                'default_rate' => (float) Setting::get('rate_6ball', 130),
+            ],
+            '10_ball' => [
+                'id' => '10_ball',
+                'name' => '10 Ball',
+                'type' => 'frame',
+                'badge' => 'Rs. 150 / frame',
+                'desc' => '10-Red frame (Rs. 150 per frame)',
+                'default_rate' => (float) Setting::get('rate_10ball', 150),
+            ],
+            'one_ball' => [
+                'id' => 'one_ball',
+                'name' => 'One Ball',
+                'type' => 'frame',
+                'badge' => 'Rs. 120 / frame',
+                'desc' => 'One Ball frame (Rs. 120 per frame)',
+                'default_rate' => (float) Setting::get('rate_oneball', 120),
+            ],
+        ];
 
         return view('sessions.create', compact(
             'availableTables',
             'selectedTableId',
-            'defaultPrice',
             'currency',
-            'recentCustomers'
+            'gameTypes'
         ));
     }
 
@@ -97,11 +129,12 @@ class SessionController extends Controller
             'customer_name' => ['required', 'string', 'max:150'],
             'customer_phone' => ['nullable', 'string', 'max:40'],
             'table_id' => ['required', 'exists:tables,id'],
+            'game_type' => ['required', 'in:century,6_ball,10_ball,one_ball'],
             'notes' => ['nullable', 'string', 'max:500'],
         ]);
 
         return DB::transaction(function () use ($validated) {
-            // Business Rule: Check table availability atomically
+            // Atomic table lock
             $table = ClubTable::lockForUpdate()->findOrFail($validated['table_id']);
 
             if (!$table->isAvailable()) {
@@ -127,8 +160,9 @@ class SessionController extends Controller
                 $customer->update(['phone' => $customerPhone]);
             }
 
-            // Lock price from system settings for historical accuracy
-            $lockedPrice = (float) Setting::get('price_per_round', 500);
+            // Fetch table-specific rate for chosen gameplay
+            $gameType = $validated['game_type'];
+            $rateApplied = $table->getRateForGame($gameType);
             $startTime = Carbon::now();
 
             // Generate clean human-readable session code e.g. SESS-1025
@@ -141,13 +175,16 @@ class SessionController extends Controller
                 'customer_id' => $customer->id,
                 'table_id' => $table->id,
                 'user_id' => Auth::id(),
-                'price_per_round' => $lockedPrice,
+                'game_type' => $gameType,
+                'rate_applied' => $rateApplied,
+                'price_per_round' => $rateApplied,
                 'rounds' => 1,
-                'total_price' => $lockedPrice,
+                'total_price' => $rateApplied,
                 'start_time' => $startTime,
                 'end_time' => null,
                 'duration_seconds' => 0,
                 'payment_status' => 'unpaid',
+                'payment_method' => 'cash',
                 'status' => 'active',
                 'notes' => $validated['notes'] ?? null,
             ]);
@@ -159,7 +196,7 @@ class SessionController extends Controller
             ]);
 
             return redirect()->route('sessions.show', $session->id)
-                ->with('success', "Session started for {$customer->name} on {$table->name}!");
+                ->with('success', "Session started for {$customer->name} on {$table->name} ({$session->gameTitle()})!");
         });
     }
 
@@ -170,7 +207,7 @@ class SessionController extends Controller
     {
         $session = GameSession::with(['customer', 'table', 'user', 'payments.user'])->findOrFail($id);
         $currency = Setting::get('currency', 'Rs.');
-        $clubName = Setting::get('club_name', 'Break Point Snooker Club');
+        $clubName = Setting::get('club_name', 'CueMaster Club');
         $clubPhone = Setting::get('club_phone', '');
 
         // If completed or cancelled, show receipt/details view
@@ -178,12 +215,54 @@ class SessionController extends Controller
             return view('sessions.receipt', compact('session', 'currency', 'clubName', 'clubPhone'));
         }
 
+        // Integrity Guarantee: Ensure table is locked as occupied while session is active
+        if ($session->table && ($session->table->status !== 'occupied' || $session->table->current_session_id !== $session->id)) {
+            $session->table->update([
+                'status' => 'occupied',
+                'current_session_id' => $session->id,
+            ]);
+        }
+
         // Active session interactive screen
         return view('sessions.active', compact('session', 'currency', 'clubName', 'clubPhone'));
     }
 
     /**
-     * AJAX: Update Round quantity (Shopify quantity style).
+     * Live Status polling for active sessions (seconds, clock, current dynamic price).
+     */
+    public function liveStatus($id)
+    {
+        $session = GameSession::findOrFail($id);
+        $currency = Setting::get('currency', 'Rs.');
+        $elapsedSeconds = $session->elapsedSeconds();
+        $elapsedMinutes = $session->elapsedMinutes();
+        $currentTotal = $session->calculateTotal();
+
+        // Integrity Guarantee: Keep table locked as occupied during active polling
+        if ($session->isActive() && $session->table && $session->table->current_session_id !== $session->id) {
+            $session->table->update([
+                'status' => 'occupied',
+                'current_session_id' => $session->id,
+            ]);
+        }
+
+        return response()->json([
+            'status' => $session->status,
+            'game_type' => $session->game_type,
+            'is_time_based' => $session->isTimeBased(),
+            'elapsed_seconds' => $elapsedSeconds,
+            'elapsed_minutes' => $elapsedMinutes,
+            'clock' => $session->timerClockString(),
+            'rounds' => $session->rounds,
+            'rate_applied' => (float) ($session->rate_applied ?: $session->price_per_round),
+            'total_price' => $currentTotal,
+            'formatted_total' => $currency . ' ' . number_format($currentTotal, 0),
+            'payment_status' => $session->payment_status,
+        ]);
+    }
+
+    /**
+     * AJAX: Update Round quantity for frame-based games (Shopify quantity style).
      */
     public function updateRounds(Request $request, $id)
     {
@@ -196,12 +275,20 @@ class SessionController extends Controller
             ], 422);
         }
 
+        if ($session->isTimeBased()) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Century gameplay is billed per minute, not by frames.',
+            ], 422);
+        }
+
         $validated = $request->validate([
-            'rounds' => ['required', 'integer', 'min:1'],
+            'rounds' => ['required', 'integer', 'min:1', 'max:500'],
         ]);
 
         $rounds = (int) $validated['rounds'];
-        $totalPrice = $rounds * $session->price_per_round;
+        $rate = (float) ($session->rate_applied ?: $session->price_per_round);
+        $totalPrice = $rounds * $rate;
 
         $session->update([
             'rounds' => $rounds,
@@ -213,7 +300,7 @@ class SessionController extends Controller
         return response()->json([
             'success' => true,
             'rounds' => $session->rounds,
-            'price_per_round' => (float) $session->price_per_round,
+            'rate_applied' => $rate,
             'total_price' => (float) $session->total_price,
             'formatted_total' => $currency . ' ' . number_format($session->total_price, 0),
             'saved_at' => Carbon::now()->format('h:i:s A'),
@@ -221,7 +308,7 @@ class SessionController extends Controller
     }
 
     /**
-     * AJAX: Update Payment Status (Paid / Unpaid).
+     * AJAX: Update Payment Status (Paid / Unpaid) - CASH ONLY.
      */
     public function updatePayment(Request $request, $id)
     {
@@ -236,27 +323,27 @@ class SessionController extends Controller
 
         $validated = $request->validate([
             'payment_status' => ['required', 'in:paid,unpaid'],
-            'payment_method' => ['nullable', 'string', 'in:cash,card,online,other'],
         ]);
 
         $status = $validated['payment_status'];
-        $method = $validated['payment_method'] ?? 'cash';
         $now = Carbon::now();
 
-        DB::transaction(function () use ($session, $status, $method, $now) {
+        DB::transaction(function () use ($session, $status, $now) {
             if ($status === 'paid') {
+                $total = $session->calculateTotal();
                 $session->update([
+                    'total_price' => $total,
                     'payment_status' => 'paid',
                     'payment_time' => $now,
-                    'payment_method' => $method,
+                    'payment_method' => 'cash',
                 ]);
 
-                // Record or update Payment ledger
+                // Record or update Payment ledger (Cash only)
                 Payment::updateOrCreate(
                     ['game_session_id' => $session->id],
                     [
-                        'amount' => $session->total_price,
-                        'payment_method' => $method,
+                        'amount' => $total,
+                        'payment_method' => 'cash',
                         'status' => 'completed',
                         'paid_at' => $now,
                         'user_id' => Auth::id(),
@@ -268,15 +355,20 @@ class SessionController extends Controller
                     'payment_time' => null,
                 ]);
 
-                // Remove or delete payment record
+                // Remove payment record
                 Payment::where('game_session_id', $session->id)->delete();
             }
         });
 
+        $currency = Setting::get('currency', 'Rs.');
+
         return response()->json([
             'success' => true,
             'payment_status' => $session->payment_status,
+            'payment_method' => 'cash',
             'payment_time' => $session->payment_time ? $session->payment_time->format('h:i A') : null,
+            'total_price' => (float) $session->total_price,
+            'formatted_total' => $currency . ' ' . number_format($session->total_price, 0),
             'saved_at' => Carbon::now()->format('h:i:s A'),
         ]);
     }
@@ -292,14 +384,20 @@ class SessionController extends Controller
             return response()->json(['success' => false, 'message' => 'Session is not active.'], 422);
         }
 
-        if ($request->has('notes')) {
-            $session->update(['notes' => $request->notes]);
+        $validated = $request->validate([
+            'notes' => ['nullable', 'string', 'max:500'],
+            'customer_name' => ['nullable', 'string', 'max:150'],
+            'customer_phone' => ['nullable', 'string', 'max:40'],
+        ]);
+
+        if (array_key_exists('notes', $validated)) {
+            $session->update(['notes' => $validated['notes']]);
         }
 
-        if ($request->filled('customer_name') && $session->customer) {
+        if (!empty($validated['customer_name']) && $session->customer) {
             $session->customer->update([
-                'name' => trim($request->customer_name),
-                'phone' => $request->filled('customer_phone') ? trim($request->customer_phone) : $session->customer->phone,
+                'name' => trim($validated['customer_name']),
+                'phone' => !empty($validated['customer_phone']) ? trim($validated['customer_phone']) : $session->customer->phone,
             ]);
         }
 
@@ -314,6 +412,10 @@ class SessionController extends Controller
      */
     public function checkout(Request $request, $id)
     {
+        $request->validate([
+            'confirm_checkout' => ['required', 'in:yes,1'],
+        ]);
+
         return DB::transaction(function () use ($request, $id) {
             $session = GameSession::lockForUpdate()->findOrFail($id);
 
@@ -334,7 +436,7 @@ class SessionController extends Controller
 
             // Check payment status from request or keep existing
             $paymentStatus = $request->input('payment_status', $session->payment_status);
-            $paymentMethod = $request->input('payment_method', $session->payment_method ?? 'cash');
+            $paymentMethod = 'cash'; // Strict cash only
 
             $session->update([
                 'end_time' => $endTime,
@@ -352,7 +454,7 @@ class SessionController extends Controller
                     ['game_session_id' => $session->id],
                     [
                         'amount' => $finalTotal,
-                        'payment_method' => $paymentMethod,
+                        'payment_method' => 'cash',
                         'status' => 'completed',
                         'paid_at' => $endTime,
                         'user_id' => Auth::id(),

@@ -17,22 +17,25 @@ class GameSession extends Model
         'customer_id',
         'table_id',
         'user_id',
-        'price_per_round',
+        'game_type',      // 'century', '6_ball', '10_ball', 'one_ball'
+        'rate_applied',   // locked historical rate (per min for century, per round for ball games)
+        'price_per_round',// legacy fallback
         'rounds',
         'total_price',
         'start_time',
         'end_time',
         'duration_seconds',
-        'payment_status',
+        'payment_status', // 'unpaid', 'paid'
         'payment_time',
-        'payment_method',
-        'status',
+        'payment_method', // 'cash' only
+        'status',         // 'active', 'completed', 'cancelled'
         'notes',
     ];
 
     protected function casts(): array
     {
         return [
+            'rate_applied' => 'decimal:2',
             'price_per_round' => 'decimal:2',
             'total_price' => 'decimal:2',
             'start_time' => 'datetime',
@@ -63,6 +66,22 @@ class GameSession extends Model
         return $this->hasMany(Payment::class, 'game_session_id');
     }
 
+    public function isTimeBased(): bool
+    {
+        return $this->game_type === 'century';
+    }
+
+    public function gameTitle(): string
+    {
+        return match ($this->game_type) {
+            'century' => 'Century (Per Min)',
+            '6_ball' => '6 Ball',
+            '10_ball' => '10 Ball',
+            'one_ball' => 'One Ball',
+            default => '6 Ball',
+        };
+    }
+
     public function isActive(): bool
     {
         return $this->status === 'active';
@@ -88,11 +107,6 @@ class GameSession extends Model
         return $this->payment_status === 'unpaid';
     }
 
-    public function calculateTotal(): float
-    {
-        return (float) ($this->rounds * $this->price_per_round);
-    }
-
     public function elapsedSeconds(): int
     {
         if ($this->end_time && $this->duration_seconds > 0) {
@@ -104,6 +118,23 @@ class GameSession extends Model
         }
 
         return max(0, Carbon::now()->diffInSeconds($this->start_time));
+    }
+
+    public function elapsedMinutes(): int
+    {
+        $seconds = $this->elapsedSeconds();
+        return max(1, (int) ceil($seconds / 60));
+    }
+
+    public function calculateTotal(): float
+    {
+        $rate = $this->rate_applied ?: $this->price_per_round;
+
+        if ($this->isTimeBased()) {
+            return (float) ($this->elapsedMinutes() * $rate);
+        }
+
+        return (float) ($this->rounds * $rate);
     }
 
     public function formattedDuration(): string

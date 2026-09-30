@@ -4,6 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta name="csrf-token" content="{{ csrf_token() }}">
+  <meta name="robots" content="noindex, nofollow">
   <title>@yield('title', 'Snooker Club Operations') — {{ \App\Models\Setting::get('club_name', 'CueMaster Club') }}</title>
   
   <!-- Tailwind CSS CDN -->
@@ -194,13 +195,13 @@
     <div class="p-4 border-t-2 border-black bg-gray-50">
       <div class="flex items-center justify-between mb-3">
         <div>
-          <p class="font-bold text-sm text-gray-900 leading-tight">{{ auth()->user()->name }}</p>
-          <span class="inline-block mt-0.5 px-2 py-0.5 text-[10px] font-black uppercase tracking-wider border border-black {{ auth()->user()->isAdmin() ? 'bg-brand-yellow text-black' : 'bg-gray-200 text-gray-800' }}">
-            {{ auth()->user()->role }}
+          <p class="font-bold text-sm text-gray-900 leading-tight">{{ auth()->user()?->name ?? 'Guest User' }}</p>
+          <span class="inline-block mt-0.5 px-2 py-0.5 text-[10px] font-black uppercase tracking-wider border border-black {{ auth()->user()?->isAdmin() ? 'bg-brand-yellow text-black' : 'bg-gray-200 text-gray-800' }}">
+            {{ auth()->user()?->role ?? 'Staff' }}
           </span>
         </div>
       </div>
-      <form action="{{ route('logout') }}" method="POST">
+      <form action="{{ route('logout', [], false) }}" method="POST">
         @csrf
         <button type="submit" class="w-full btn-brutal py-1.5 px-3 bg-white hover:bg-red-50 text-red-600 text-xs flex items-center justify-center gap-1.5 uppercase">
           <i class="fa-solid fa-arrow-right-from-bracket"></i>
@@ -243,7 +244,7 @@
       </div>
     @endif
 
-    @if($errors->any())
+    @if(isset($errors) && $errors->any())
       <div class="mb-6 card-brutal bg-red-50 p-4 border-red-600 border-2 shadow-brutal">
         <div class="flex items-center gap-2 text-red-900 font-bold text-sm mb-2">
           <i class="fa-solid fa-circle-xmark text-red-600"></i>

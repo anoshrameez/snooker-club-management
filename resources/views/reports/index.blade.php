@@ -134,25 +134,60 @@
     </div>
   </div>
 
-  <!-- PAYMENT METHODS BREAKDOWN -->
+  <!-- GAMEPLAY REVENUE BREAKDOWN -->
   <div class="card-brutal p-5 bg-white space-y-3">
     <h3 class="text-xs font-black uppercase tracking-wider text-gray-950 border-b-2 border-black pb-2 flex items-center gap-2">
-      <i class="fa-solid fa-credit-card"></i>
-      <span>Payment Modes Collection</span>
+      <i class="fa-solid fa-trophy"></i>
+      <span>Revenue by Gameplay Mode</span>
     </h3>
 
-    <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
-      @forelse($paymentMethods as $pm)
-        <div class="p-4 bg-gray-50 border-2 border-black">
-          <p class="text-[10px] font-black uppercase text-gray-500">{{ $pm->payment_method }} Collection</p>
-          <p class="text-xl font-black text-gray-950 font-mono mt-1">{{ $currency }} {{ number_format($pm->amount, 0) }}</p>
-          <p class="text-[11px] font-bold text-gray-600 mt-0.5">{{ $pm->count }} successful payments</p>
+    <div class="grid grid-cols-2 sm:grid-cols-4 gap-4">
+      @php
+        $modes = [
+          'century' => ['name' => 'Century', 'icon' => '⏱️', 'badge' => 'Time-Based'],
+          '6_ball' => ['name' => '6 Ball', 'icon' => '🎱', 'badge' => 'Frame-Based'],
+          '10_ball' => ['name' => '10 Ball', 'icon' => '🔴', 'badge' => 'Frame-Based'],
+          'one_ball' => ['name' => 'One Ball', 'icon' => '🟡', 'badge' => 'Frame-Based'],
+        ];
+      @endphp
+
+      @foreach($modes as $mKey => $mInfo)
+        @php
+          $matched = $gameplayBreakdown->firstWhere('game_type', $mKey);
+          $sessCount = $matched ? $matched->sessions_count : 0;
+          $rev = $matched ? (float)$matched->total_revenue : 0;
+        @endphp
+        <div class="p-4 bg-gray-50 border-2 border-black space-y-1">
+          <div class="flex items-center justify-between">
+            <span class="text-base">{{ $mInfo['icon'] }}</span>
+            <span class="badge-brutal px-1.5 py-0.2 bg-black text-brand-yellow text-[9px]">{{ $mInfo['badge'] }}</span>
+          </div>
+          <p class="text-xs font-black uppercase text-gray-950 mt-1">{{ $mInfo['name'] }}</p>
+          <p class="text-xl font-black text-gray-950 font-mono">{{ $currency }} {{ number_format($rev, 0) }}</p>
+          <p class="text-[10px] font-bold text-gray-500 uppercase">{{ $sessCount }} session(s)</p>
         </div>
-      @empty
-        <div class="col-span-3 text-center py-4 text-xs font-bold text-gray-500">
-          No payments recorded for this time range.
-        </div>
-      @endforelse
+      @endforeach
+    </div>
+  </div>
+
+  <!-- CASH SETTLEMENT SUMMARY -->
+  <div class="card-brutal p-5 bg-yellow-50 border-2 border-black space-y-2">
+    <div class="flex items-center justify-between">
+      <h3 class="text-xs font-black uppercase tracking-wider text-gray-950 flex items-center gap-2">
+        <i class="fa-solid fa-money-bill-wave text-green-700"></i>
+        <span>Cash Register Summary</span>
+      </h3>
+      <span class="badge-brutal px-2 py-0.5 bg-black text-brand-yellow text-[10px]">CASH ONLY</span>
+    </div>
+    <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-1">
+      <div class="p-3 bg-white border border-black">
+        <span class="text-[10px] uppercase font-bold text-gray-500 block">Total Cash Collected:</span>
+        <span class="font-mono font-black text-2xl text-green-700 block mt-0.5">{{ $currency }} {{ number_format($paidAmount, 0) }}</span>
+      </div>
+      <div class="p-3 bg-white border border-black">
+        <span class="text-[10px] uppercase font-bold text-gray-500 block">Total Cash Pending / Unpaid:</span>
+        <span class="font-mono font-black text-2xl text-red-600 block mt-0.5">{{ $currency }} {{ number_format($unpaidAmount, 0) }}</span>
+      </div>
     </div>
   </div>
 

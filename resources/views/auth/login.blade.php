@@ -3,6 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="robots" content="noindex, nofollow">
   <title>Login — {{ \App\Models\Setting::get('club_name', 'CueMaster Club') }}</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -12,7 +13,7 @@
   <style>
     body {
       font-family: 'Space Grotesk', sans-serif;
-      background-color: #F8F9FA;
+      background-color: #F4F4F0;
     }
     .card-brutal {
       background: #FFFFFF;
@@ -49,14 +50,14 @@
         🎱
       </div>
       <h1 class="text-2xl font-black uppercase tracking-tight text-gray-950">{{ \App\Models\Setting::get('club_name', 'CueMaster Snooker Club') }}</h1>
-      <p class="text-xs font-bold text-gray-600 uppercase tracking-widest mt-1">Reception & Management Portal</p>
+      <p class="text-xs font-bold text-gray-600 uppercase tracking-widest mt-1">Reception Counter Access</p>
     </div>
 
     <!-- Login Card -->
     <div class="card-brutal p-6 sm:p-8">
       <h2 class="text-lg font-black uppercase tracking-tight mb-5 border-b-2 border-black pb-3 flex items-center justify-between">
-        <span>Sign In</span>
-        <span class="text-xs px-2 py-0.5 bg-yellow-300 border border-black font-mono">SECURE</span>
+        <span>Authorized Access</span>
+        <span class="text-xs px-2 py-0.5 bg-yellow-300 border border-black font-mono">STAFF / ADMIN</span>
       </h2>
 
       @if($errors->any())
@@ -66,52 +67,49 @@
         </div>
       @endif
 
-      <form action="{{ route('login.post') }}" method="POST" class="space-y-4">
+      <form action="{{ route('login.post', [], false) }}" method="POST" class="space-y-4">
         @csrf
 
         <div>
-          <label class="block text-xs font-black uppercase tracking-wider mb-1.5 text-gray-900">Email Address</label>
-          <input type="email" name="email" id="email" required value="{{ old('email', 'admin@snooker.club') }}" class="w-full input-brutal px-4 py-2.5 text-sm text-gray-900" placeholder="staff@snooker.club">
+          <label class="block text-xs font-black uppercase tracking-wider mb-1.5 text-gray-900">Username</label>
+          <input 
+            type="text" 
+            name="username" 
+            id="username" 
+            required 
+            autofocus
+            value="{{ old('username') }}" 
+            class="w-full input-brutal px-4 py-2.5 text-sm text-gray-900 font-bold" 
+            placeholder="Enter username"
+          >
         </div>
 
         <div>
           <label class="block text-xs font-black uppercase tracking-wider mb-1.5 text-gray-900">Password</label>
-          <input type="password" name="password" id="password" required value="admin123" class="w-full input-brutal px-4 py-2.5 text-sm text-gray-900" placeholder="••••••••">
+          <input 
+            type="password" 
+            name="password" 
+            id="password" 
+            required 
+            class="w-full input-brutal px-4 py-2.5 text-sm text-gray-900" 
+            placeholder="Enter password"
+          >
         </div>
 
         <div class="flex items-center justify-between text-xs pt-1">
           <label class="flex items-center gap-2 cursor-pointer font-bold select-none">
             <input type="checkbox" name="remember" class="w-4 h-4 border-2 border-black rounded-none text-black focus:ring-0">
-            <span>Remember me</span>
+            <span>Remember me on this counter</span>
           </label>
         </div>
 
-        <button type="submit" class="w-full btn-brutal py-3 bg-[#FACC15] hover:bg-yellow-400 text-black text-sm uppercase tracking-wider flex items-center justify-center gap-2 mt-2">
-          <i class="fa-solid fa-lock-open text-xs"></i>
+        <button type="submit" class="w-full btn-brutal py-3 bg-[#FACC15] hover:bg-yellow-400 text-black text-sm uppercase tracking-wider flex items-center justify-center gap-2 mt-2 font-black">
+          <i class="fa-solid fa-lock text-xs"></i>
           <span>Enter Dashboard</span>
         </button>
       </form>
-
-      <!-- Quick Demo Account Fillers -->
-      <div class="mt-6 pt-4 border-t-2 border-dashed border-gray-300">
-        <p class="text-[11px] font-bold text-gray-500 uppercase tracking-wider mb-2">Quick Sign-In (Demo Credentials):</p>
-        <div class="grid grid-cols-2 gap-2">
-          <button type="button" onclick="fillCreds('admin@snooker.club', 'admin123')" class="btn-brutal py-1.5 px-2 bg-gray-100 hover:bg-gray-200 text-xs font-bold text-center">
-            Admin User
-          </button>
-          <button type="button" onclick="fillCreds('staff@snooker.club', 'staff123')" class="btn-brutal py-1.5 px-2 bg-gray-100 hover:bg-gray-200 text-xs font-bold text-center">
-            Staff User
-          </button>
-        </div>
-      </div>
     </div>
   </div>
 
-  <script>
-    function fillCreds(email, pass) {
-      document.getElementById('email').value = email;
-      document.getElementById('password').value = pass;
-    }
-  </script>
 </body>
 </html>

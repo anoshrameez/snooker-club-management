@@ -97,9 +97,10 @@
             <th class="p-3.5">Date & Time</th>
             <th class="p-3.5">Customer</th>
             <th class="p-3.5">Table</th>
-            <th class="p-3.5">Rounds</th>
+            <th class="p-3.5">Gameplay</th>
+            <th class="p-3.5">Frames / Time</th>
             <th class="p-3.5">Duration</th>
-            <th class="p-3.5">Total</th>
+            <th class="p-3.5">Total (Cash)</th>
             <th class="p-3.5">Payment</th>
             <th class="p-3.5">Status</th>
             <th class="p-3.5 text-right">Receipt / Details</th>
@@ -126,8 +127,17 @@
               <td class="p-3.5 font-bold uppercase text-gray-900">
                 {{ $sess->table->name ?? 'Table' }}
               </td>
+              <td class="p-3.5">
+                <span class="badge-brutal px-2 py-0.5 text-[9px] bg-black text-brand-yellow font-black">
+                  {{ $sess->gameTitle() }}
+                </span>
+              </td>
               <td class="p-3.5 font-mono font-bold text-sm">
-                {{ $sess->rounds }}
+                @if($sess->isTimeBased())
+                  {{ $sess->elapsedMinutes() }} min
+                @else
+                  {{ $sess->rounds }} frame(s)
+                @endif
               </td>
               <td class="p-3.5 font-mono text-gray-700">
                 {{ $sess->formattedDuration() }}
@@ -139,9 +149,6 @@
                 <span class="badge-brutal px-2.5 py-0.5 text-[10px] {{ $sess->isPaid() ? 'bg-green-100 text-green-950 border-green-700' : 'bg-red-100 text-red-950 border-red-700' }}">
                   {{ strtoupper($sess->payment_status) }}
                 </span>
-                @if($sess->isPaid() && $sess->payment_method)
-                  <span class="block text-[9px] uppercase font-bold text-gray-400 mt-0.5">{{ $sess->payment_method }}</span>
-                @endif
               </td>
               <td class="p-3.5">
                 @if($sess->isActive())
