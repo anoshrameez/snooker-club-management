@@ -118,9 +118,12 @@
   <div id="root"></div>
 
   <script type="text/babel">
-    const { useState, useEffect } = React;
+    const { useState, useEffect, useRef } = React;
 
-    // --- REAL INITIAL DATA (NO FAKE / DEMO SESSIONS OR CUSTOMERS) ---
+    // REAL-TIME MULTI-DEVICE CLOUD SYNC ENDPOINT (CORS ENABLED FOR ALL DEVICES)
+    const CLOUD_SYNC_URL = 'https://api.restful-api.dev/objects/ff808181a09d98f701a0f2cfcd8a4e5b';
+
+    // REAL INITIAL DATA (CLEAN ZERO DEMO SESSIONS / CUSTOMERS)
     const DEFAULT_TABLES = [
       { id: 1, name: "Table 1 (Standard)", type: "standard", rate_century: 10, rate_6ball: 130, rate_10ball: 150, rate_oneball: 120, status: "available", session: null },
       { id: 2, name: "Table 2 (Standard)", type: "standard", rate_century: 10, rate_6ball: 130, rate_10ball: 150, rate_oneball: 120, status: "available", session: null },
@@ -148,7 +151,6 @@
       default_oneball: 120,
     };
 
-    // Storage Helpers
     function getStore(k, fallback) {
       try {
         const item = localStorage.getItem(k);
@@ -164,15 +166,15 @@
     }
 
     // ==========================================
-    // MAIN CONTROLLER COMPONENT
+    // MAIN APP WITH REAL-TIME CLOUD SYNC
     // ==========================================
     function App() {
       const [currentUser, setCurrentUser] = useState(() => getStore('cm_auth_user', null));
       const [tables, setTables] = useState(() => getStore('cm_tables', DEFAULT_TABLES));
       const [users, setUsers] = useState(() => getStore('cm_users', DEFAULT_USERS));
       const [settings, setSettings] = useState(() => getStore('cm_settings', DEFAULT_SETTINGS));
-      const [customers, setCustomers] = useState(() => getStore('cm_customers', [])); // CLEAN (NO DEMO DATA)
-      const [sessions, setSessions] = useState(() => getStore('cm_sessions', [])); // CLEAN (NO DEMO DATA)
+      const [customers, setCustomers] = useState(() => getStore('cm_customers', []));
+      const [sessions, setSessions] = useState(() => getStore('cm_sessions', []));
 
       const [activeTab, setActiveTab] = useState('dashboard');
       const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
@@ -180,8 +182,79 @@
       const [receiptData, setReceiptData] = useState(null);
       const [newSessionModalOpen, setNewSessionModalOpen] = useState(false);
       const [selectedTableForModal, setSelectedTableForModal] = useState(null);
+      const [cloudSyncStatus, setCloudSyncStatus] = useState('synced'); // 'synced', 'syncing', 'offline'
 
-      // Persistence
+      const lastUpdatedRef = useRef(0);
+
+      // --- MULTI-DEVICE CLOUD SYNC ENGINE ---
+      const pushToCloud = async (newTables, newSessions, newCustomers) => {
+        try {
+          setCloudSyncStatus('syncing');
+          const timestamp = Date.now();
+          lastUpdatedRef.current = timestamp;
+
+          const payload = {
+            name: 'snooker_pos_state',
+            data: {
+              tables: JSON.stringify(newTables || tables),
+              sessions: JSON.stringify(newSessions || sessions),
+              customers: JSON.stringify(newCustomers || customers),
+              updatedAt: timestamp
+            }
+          };
+
+          await fetch(CLOUD_SYNC_URL, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+          });
+          setCloudSyncStatus('synced');
+        } catch (err) {
+          console.warn('Cloud sync push error:', err);
+          setCloudSyncStatus('offline');
+        }
+      };
+
+      const pullFromCloud = async () => {
+        try {
+          const res = await fetch(CLOUD_SYNC_URL);
+          if (!res.ok) return;
+          const json = await res.json();
+          if (json && json.data) {
+            const cloudTimestamp = Number(json.data.updatedAt) || 0;
+            if (cloudTimestamp > lastUpdatedRef.current) {
+              lastUpdatedRef.current = cloudTimestamp;
+              if (json.data.tables) {
+                const parsedTables = JSON.parse(json.data.tables);
+                setTables(parsedTables);
+                setStore('cm_tables', parsedTables);
+              }
+              if (json.data.sessions) {
+                const parsedSessions = JSON.parse(json.data.sessions);
+                setSessions(parsedSessions);
+                setStore('cm_sessions', parsedSessions);
+              }
+              if (json.data.customers) {
+                const parsedCustomers = JSON.parse(json.data.customers);
+                setCustomers(parsedCustomers);
+                setStore('cm_customers', parsedCustomers);
+              }
+            }
+            setCloudSyncStatus('synced');
+          }
+        } catch (err) {
+          setCloudSyncStatus('offline');
+        }
+      };
+
+      // Pull from cloud on mount and poll every 3 seconds for cross-device live updates
+      useEffect(() => {
+        pullFromCloud();
+        const pollInterval = setInterval(pullFromCloud, 3000);
+        return () => clearInterval(pollInterval);
+      }, []);
+
+      // Local storage mirror
       useEffect(() => { setStore('cm_auth_user', currentUser); }, [currentUser]);
       useEffect(() => { setStore('cm_tables', tables); }, [tables]);
       useEffect(() => { setStore('cm_users', users); }, [users]);
@@ -189,7 +262,7 @@
       useEffect(() => { setStore('cm_customers', customers); }, [customers]);
       useEffect(() => { setStore('cm_sessions', sessions); }, [sessions]);
 
-      // Clock (PKT Asia/Karachi)
+      // PKT Clock
       const [pktDate, setPktDate] = useState('');
       const [pktTime, setPktTime] = useState('');
       useEffect(() => {
@@ -199,11 +272,10 @@
           setPktTime(now.toLocaleTimeString('en-US', { timeZone: 'Asia/Karachi', hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: true }));
         };
         updateClock();
-        const interval = setInterval(updateClock, 1000);
-        return () => clearInterval(interval);
+        const timer = setInterval(updateClock, 1000);
+        return () => clearInterval(timer);
       }, []);
 
-      // Handlers
       const handleLogin = (user) => {
         setCurrentUser(user);
         setActiveTab('dashboard');
@@ -216,16 +288,19 @@
 
       const handleStartMatch = ({ tableId, customerName, customerPhone, gameType, rateApplied, rounds }) => {
         const sessionCode = `SNK-${Date.now().toString().slice(-6)}`;
+        let updatedCustomers = [...customers];
+
         if (customerName && customerName.trim() && customerName !== 'Walk-in Player') {
           const exists = customers.find(c => c.name.toLowerCase() === customerName.trim().toLowerCase());
           if (exists) {
-            setCustomers(prev => prev.map(c => c.id === exists.id ? { ...c, total_visits: (c.total_visits || 1) + 1 } : c));
+            updatedCustomers = customers.map(c => c.id === exists.id ? { ...c, total_visits: (c.total_visits || 1) + 1 } : c);
           } else {
-            setCustomers(prev => [{ id: Date.now(), name: customerName.trim(), phone: customerPhone.trim(), notes: 'Counter match', total_visits: 1, total_spent: 0 }, ...prev]);
+            updatedCustomers = [{ id: Date.now(), name: customerName.trim(), phone: customerPhone.trim(), notes: 'Counter match', total_visits: 1, total_spent: 0 }, ...customers];
           }
+          setCustomers(updatedCustomers);
         }
 
-        setTables(prev => prev.map(t => {
+        const updatedTables = tables.map(t => {
           if (t.id === tableId) {
             return {
               ...t,
@@ -243,17 +318,23 @@
             };
           }
           return t;
-        }));
+        });
+
+        setTables(updatedTables);
         setNewSessionModalOpen(false);
+        // Sync across mobile and desktop instantly!
+        pushToCloud(updatedTables, sessions, updatedCustomers);
       };
 
       const handleUpdateRounds = (tableId, newRounds) => {
-        setTables(prev => prev.map(t => {
+        const updatedTables = tables.map(t => {
           if (t.id === tableId && t.session) {
             return { ...t, session: { ...t.session, rounds: Math.max(1, newRounds) } };
           }
           return t;
-        }));
+        });
+        setTables(updatedTables);
+        pushToCloud(updatedTables, sessions, customers);
       };
 
       const handleConfirmSettlement = ({ tableId, tableName, customerName, customerPhone, gameType, rateApplied, rounds, durationSeconds, subtotal, discount, totalPrice, notes, shouldPrint }) => {
@@ -278,22 +359,28 @@
           start_time: new Date().toLocaleString('en-US', { timeZone: 'Asia/Karachi' })
         };
 
-        setSessions(prev => [sessionRecord, ...prev]);
+        const updatedSessions = [sessionRecord, ...sessions];
+        setSessions(updatedSessions);
 
+        let updatedCustomers = [...customers];
         if (customerName) {
-          setCustomers(prev => prev.map(c => c.name.toLowerCase() === customerName.toLowerCase() ? { ...c, total_spent: (c.total_spent || 0) + totalPrice } : c));
+          updatedCustomers = customers.map(c => c.name.toLowerCase() === customerName.toLowerCase() ? { ...c, total_spent: (c.total_spent || 0) + totalPrice } : c);
+          setCustomers(updatedCustomers);
         }
 
-        // Free up table
-        setTables(prev => prev.map(t => t.id === tableId ? { ...t, status: 'available', session: null } : t));
+        const updatedTables = tables.map(t => t.id === tableId ? { ...t, status: 'available', session: null } : t);
+        setTables(updatedTables);
         setCheckoutData(null);
 
         if (shouldPrint) {
           setReceiptData(sessionRecord);
         }
+
+        // Broadcast to cloud so mobile and desktop sync in real time!
+        pushToCloud(updatedTables, updatedSessions, updatedCustomers);
       };
 
-      // IF USER NOT LOGGED IN: SHOW THE EXACT LOGIN SCREEN (MEDIA_1790779450790)
+      // Gated Login Page
       if (!currentUser) {
         return (
           <LoginPage
@@ -304,7 +391,7 @@
         );
       }
 
-      // ACTIVE METRICS
+      // Live metrics
       const activeSessions = tables.filter(t => t.status === 'occupied' && t.session);
       const totalRevenueToday = sessions.reduce((sum, s) => sum + (Number(s.total_price) || 0), 0);
       const totalCenturyMinutes = sessions.filter(s => s.game_type === 'century').reduce((sum, s) => sum + Math.ceil((Number(s.duration_seconds) || 0) / 60), 0);
@@ -313,7 +400,7 @@
       return (
         <div className="min-h-screen flex flex-col md:flex-row antialiased bg-[#F8F9FA]">
           
-          {/* MOBILE TOP BAR */}
+          {/* MOBILE HEADER */}
           <header className="md:hidden bg-white border-b-2 border-black p-4 flex items-center justify-between sticky top-0 z-40">
             <div className="flex items-center space-x-2">
               <div className="w-8 h-8 bg-brand-yellow border-2 border-black flex items-center justify-center font-bold text-sm shadow-brutal-sm">
@@ -322,9 +409,10 @@
               <span className="font-black tracking-tight text-base uppercase">{settings.club_name}</span>
             </div>
             <div className="flex items-center space-x-2">
+              <span className={`w-2.5 h-2.5 rounded-full ${cloudSyncStatus === 'synced' ? 'bg-emerald-500 animate-pulse' : 'bg-amber-500'}`} title="Cloud Sync"></span>
               <button
                 onClick={() => { setSelectedTableForModal(tables.find(t => t.status === 'available') || tables[0]); setNewSessionModalOpen(true); }}
-                className="btn-brutal px-3 py-1 bg-brand-yellow text-xs flex items-center gap-1"
+                className="btn-brutal px-3 py-1 bg-brand-yellow text-xs flex items-center gap-1 font-bold"
               >
                 <i className="fa-solid fa-plus text-[10px]"></i>
                 <span>NEW</span>
@@ -338,10 +426,10 @@
             </div>
           </header>
 
-          {/* SIDEBAR NAVIGATION (RESPONSIVE) */}
+          {/* SIDEBAR NAVIGATION (DESKTOP & MOBILE TOGGLE) */}
           <aside className={`${mobileMenuOpen ? 'flex' : 'hidden'} md:flex flex-col w-full md:w-64 bg-white border-r-2 border-black shrink-0 min-h-screen sticky top-0 z-30 justify-between`}>
             <div>
-              {/* Brand Logo / Header */}
+              {/* Brand Header */}
               <div className="p-5 border-b-2 border-black bg-white">
                 <div className="flex items-center space-x-3">
                   <div className="w-10 h-10 bg-brand-yellow border-2 border-black flex items-center justify-center text-lg font-black shadow-brutal-sm">
@@ -349,7 +437,12 @@
                   </div>
                   <div>
                     <h1 className="font-black text-lg tracking-tight uppercase leading-tight">{settings.club_name}</h1>
-                    <p className="text-[11px] font-bold text-gray-500 uppercase tracking-wider">{settings.tagline}</p>
+                    <div className="flex items-center gap-1.5 mt-0.5">
+                      <span className={`w-2 h-2 rounded-full ${cloudSyncStatus === 'synced' ? 'bg-emerald-500 animate-pulse' : 'bg-amber-500'}`}></span>
+                      <p className="text-[10px] font-bold text-gray-500 uppercase tracking-wider">
+                        {cloudSyncStatus === 'synced' ? 'Multi-Device Live' : 'Syncing...'}
+                      </p>
+                    </div>
                   </div>
                 </div>
               </div>
@@ -365,7 +458,7 @@
                 </button>
               </div>
 
-              {/* Main Navigation Menu */}
+              {/* Menu Links */}
               <nav className="p-3 space-y-1.5 text-sm font-bold">
                 <button
                   onClick={() => { setActiveTab('dashboard'); setMobileMenuOpen(false); }}
@@ -452,9 +545,9 @@
               </nav>
             </div>
 
-            {/* User Profile & Logout */}
+            {/* Profile Card & Logout */}
             <div className="p-4 border-t-2 border-black bg-gray-50">
-              <div className="flex items-center justify-between mb-3">
+              <div className="flex items-center justify-between mb-2">
                 <div>
                   <p className="font-bold text-sm text-gray-900 leading-tight">{currentUser.name}</p>
                   <span className={`inline-block mt-0.5 px-2 py-0.5 text-[10px] font-black uppercase tracking-wider border border-black ${
@@ -471,25 +564,25 @@
                   <i className="fa-solid fa-arrow-right-from-bracket text-xs"></i>
                 </button>
               </div>
-              <p className="text-[10px] font-mono text-gray-500 uppercase flex items-center gap-1">
+              <div className="flex items-center justify-between text-[10px] font-mono text-gray-500 uppercase pt-1 border-t border-gray-200">
                 <span>PKT:</span>
                 <span className="font-bold text-black">{pktTime}</span>
-              </p>
+              </div>
             </div>
           </aside>
 
-          {/* MAIN VIEW CONTENT AREA */}
+          {/* MAIN WORKSPACE */}
           <main className="flex-1 p-4 sm:p-6 lg:p-8 max-w-7xl w-full">
             
-            {/* VIEW 1: RECEPTION DASHBOARD */}
+            {/* VIEW 1: DASHBOARD */}
             {activeTab === 'dashboard' && (
               <div className="space-y-6">
                 
                 {/* Header */}
                 <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 pb-2 border-b-2 border-black">
                   <div>
-                    <h1 className="text-2xl sm:text-3xl font-black uppercase tracking-tight text-gray-950 flex items-center gap-2">
-                      <span>Reception Dashboard</span>
+                    <h1 className="text-2xl sm:text-3xl font-black uppercase tracking-tight text-gray-950">
+                      Reception Dashboard
                     </h1>
                     <p className="text-xs font-bold text-gray-600 uppercase tracking-widest mt-0.5">
                       Live Operations • {pktDate} (PKT)
@@ -506,29 +599,27 @@
                   </div>
                 </div>
 
-                {/* ACTIVE SESSION RECOVERY BANNER (IF ANY TABLE IS ACTIVE) */}
+                {/* ACTIVE SESSIONS RUNNING BANNER */}
                 {activeSessions.length > 0 && (
-                  <div className="card-brutal p-5 bg-amber-50 border-amber-600 border-2 shadow-brutal">
-                    <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
-                      <div className="flex items-start gap-3">
-                        <div className="w-10 h-10 bg-brand-yellow border-2 border-black flex items-center justify-center text-lg shrink-0 mt-0.5 shadow-brutal-sm">
-                          <i className="fa-solid fa-bell text-black animate-pulse"></i>
+                  <div className="card-brutal p-4 sm:p-5 bg-amber-50 border-amber-600 border-2 shadow-brutal">
+                    <div className="flex items-start gap-3">
+                      <div className="w-10 h-10 bg-brand-yellow border-2 border-black flex items-center justify-center text-lg shrink-0 mt-0.5 shadow-brutal-sm">
+                        <i className="fa-solid fa-bell text-black animate-pulse"></i>
+                      </div>
+                      <div>
+                        <div className="flex items-center gap-2">
+                          <span className="badge-brutal px-2 py-0.5 bg-black text-white text-[11px]">ACTIVE MATCH RUNNING</span>
+                          <span className="font-bold text-xs text-amber-900">{activeSessions.length} table(s) in play • Synced across all devices</span>
                         </div>
-                        <div>
-                          <div className="flex items-center gap-2">
-                            <span className="badge-brutal px-2 py-0.5 bg-black text-white text-[11px]">ACTIVE SESSION RUNNING</span>
-                            <span className="font-bold text-xs text-amber-900">{activeSessions.length} table(s) currently in play</span>
-                          </div>
-                          <div className="mt-2 text-xs font-bold text-gray-700">
-                            Counter matches are live and counting in Pakistani Rupees (Rs.). Settle cash to print thermal slip.
-                          </div>
-                        </div>
+                        <p className="mt-1 text-xs text-gray-700 font-bold">
+                          Matches started on desktop or mobile sync live in real-time. End session to record cash in ledger.
+                        </p>
                       </div>
                     </div>
                   </div>
                 )}
 
-                {/* TODAY'S REAL SUMMARY METRICS */}
+                {/* METRICS ROW */}
                 <div className="space-y-2">
                   <h2 className="text-xs font-black uppercase tracking-widest text-gray-700 flex items-center gap-1.5">
                     <i className="fa-solid fa-calendar-day"></i>
@@ -536,21 +627,18 @@
                   </h2>
 
                   <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3 sm:gap-4">
-                    {/* Sessions */}
                     <div className="card-brutal p-4 bg-white">
                       <p className="text-[11px] font-black uppercase text-gray-500 tracking-wider">Sessions</p>
                       <p className="text-3xl font-black text-gray-950 font-mono mt-1">{sessions.length}</p>
                       <p className="text-[10px] font-bold text-gray-400 mt-1 uppercase">Today</p>
                     </div>
 
-                    {/* Active Tables */}
                     <div className="card-brutal p-4 bg-yellow-50 border-black">
                       <p className="text-[11px] font-black uppercase text-gray-700 tracking-wider">Active Tables</p>
                       <p className="text-3xl font-black text-black font-mono mt-1">{activeSessions.length}</p>
                       <p className="text-[10px] font-bold text-gray-500 mt-1 uppercase">In play right now</p>
                     </div>
 
-                    {/* Total Sales */}
                     <div className="card-brutal p-4 bg-white border-brand-yellow">
                       <p className="text-[11px] font-black uppercase text-gray-500 tracking-wider">Total Sales</p>
                       <p className="text-2xl sm:text-3xl font-black text-gray-950 font-mono mt-1 truncate">
@@ -559,14 +647,12 @@
                       <p className="text-[10px] font-bold text-emerald-600 mt-1 uppercase">Cash Collected</p>
                     </div>
 
-                    {/* Century Time */}
                     <div className="card-brutal p-4 bg-white">
                       <p className="text-[11px] font-black uppercase text-gray-500 tracking-wider">Century Time</p>
                       <p className="text-3xl font-black text-gray-950 font-mono mt-1">{totalCenturyMinutes} <span className="text-sm font-normal">m</span></p>
                       <p className="text-[10px] font-bold text-gray-400 mt-1 uppercase">Time Played</p>
                     </div>
 
-                    {/* Frames */}
                     <div className="card-brutal p-4 bg-white">
                       <p className="text-[11px] font-black uppercase text-gray-500 tracking-wider">Total Frames</p>
                       <p className="text-3xl font-black text-gray-950 font-mono mt-1">{totalFramesCount}</p>
@@ -612,7 +698,11 @@
             {activeTab === 'customers' && (
               <CustomersDirectoryView
                 customers={customers}
-                onAdd={(c) => setCustomers(prev => [c, ...prev])}
+                onAdd={(c) => {
+                  const updated = [c, ...customers];
+                  setCustomers(updated);
+                  pushToCloud(tables, sessions, updated);
+                }}
               />
             )}
 
@@ -620,7 +710,11 @@
             {activeTab === 'tables' && (
               <TablesRatesView
                 tables={tables}
-                onUpdateRate={(id, f, val) => setTables(prev => prev.map(t => t.id === id ? { ...t, [f]: val } : t))}
+                onUpdateRate={(id, f, val) => {
+                  const updated = tables.map(t => t.id === id ? { ...t, [f]: val } : t);
+                  setTables(updated);
+                  pushToCloud(updated, sessions, customers);
+                }}
               />
             )}
 
@@ -682,7 +776,7 @@
     }
 
     // ==========================================
-    // EXACT LOGIN PAGE (MATCHING SCREENSHOT 100%)
+    // EXACT LOGIN PAGE (MEDIA_1790779450790)
     // ==========================================
     function LoginPage({ settings, users, onLogin }) {
       const [username, setUsername] = useState('');
@@ -702,11 +796,6 @@
         } else {
           setError('Invalid username or password. Default logins: admin / admin123 or staff / staff123');
         }
-      };
-
-      const handleQuick = (u, p) => {
-        const found = users.find(x => x.username === u && x.password === p);
-        if (found) onLogin(found);
       };
 
       return (
@@ -876,7 +965,7 @@
               <div className="bg-gray-100 p-1 border border-gray-300">1B: {table.rate_oneball}</div>
             </div>
 
-            {/* Dynamic Status View */}
+            {/* Status View */}
             {isOccupied ? (
               <div className="py-4 space-y-3">
                 <div className="bg-amber-50 border-2 border-black p-3 text-center">
@@ -925,7 +1014,7 @@
               <div className="py-8 text-center text-gray-400 space-y-1">
                 <i className="fa-solid fa-circle-check text-2xl text-emerald-500"></i>
                 <p className="text-xs font-bold text-gray-600 uppercase">Ready for Players</p>
-                <p className="text-[10px] text-gray-400">Click below to start counter clock</p>
+                <p className="text-[10px] text-gray-400">Click below to start match</p>
               </div>
             )}
           </div>
@@ -1109,7 +1198,6 @@
 
             <div className="p-6 space-y-4">
               
-              {/* Receipt Breakup */}
               <div className="bg-gray-50 border-2 border-black p-4 space-y-2 text-xs font-mono">
                 <div className="flex justify-between border-b border-gray-300 pb-1.5 font-sans font-bold">
                   <span className="text-gray-500 uppercase">Customer:</span>
@@ -1148,7 +1236,6 @@
                 </div>
               </div>
 
-              {/* Strict Cash Only Notice */}
               <div className="bg-yellow-100 border-2 border-brand-yellow p-3 text-xs font-bold text-gray-900 flex items-center gap-2">
                 <i className="fa-solid fa-money-bill-wave text-base text-black"></i>
                 <span>PAYMENT METHOD: <strong>STRICT CASH ONLY</strong>. Please collect physical cash into register.</span>
@@ -1165,7 +1252,6 @@
                 />
               </div>
 
-              {/* Strict Concurrency Confirmation Checkbox */}
               <div className="bg-red-50 border-2 border-red-500 p-3 flex items-start gap-2.5">
                 <input
                   type="checkbox"
@@ -1179,7 +1265,6 @@
                 </label>
               </div>
 
-              {/* Buttons */}
               <div className="grid grid-cols-2 gap-3 pt-2">
                 <button
                   type="button"
@@ -1297,7 +1382,7 @@
           <div className="flex items-center justify-between pb-2 border-b-2 border-black">
             <div>
               <h1 className="text-2xl font-black uppercase tracking-tight text-gray-950">Sessions History</h1>
-              <p className="text-xs font-bold text-gray-600 uppercase tracking-widest mt-0.5">All settled counter sessions</p>
+              <p className="text-xs font-bold text-gray-600 uppercase tracking-widest mt-0.5">All settled counter sessions • Live across devices</p>
             </div>
             <span className="badge-brutal px-3 py-1 bg-black text-white font-mono">{sessions.length} Recorded</span>
           </div>
@@ -1320,7 +1405,7 @@
                 {sessions.length === 0 ? (
                   <tr>
                     <td colSpan="8" className="p-8 text-center text-gray-400 font-normal">
-                      No sessions recorded yet. Start a match on any vacant table to begin.
+                      No sessions recorded yet. Start and end a match on any table, and it will appear here immediately across all devices!
                     </td>
                   </tr>
                 ) : (
@@ -1371,7 +1456,7 @@
               />
               <button
                 onClick={() => setShowAdd(!showAdd)}
-                className="btn-brutal px-4 py-1.5 bg-brand-yellow text-xs uppercase font-black"
+                className="btn-brutal px-4 py-1.5 bg-brand-yellow text-black text-xs uppercase font-black"
               >
                 {showAdd ? '✕ Close' : '+ New Customer'}
               </button>
@@ -1441,7 +1526,7 @@
         <div className="space-y-6">
           <div className="pb-2 border-b-2 border-black">
             <h1 className="text-2xl font-black uppercase tracking-tight text-gray-950">Tables & Rate Management</h1>
-            <p className="text-xs font-bold text-gray-600 uppercase tracking-widest mt-0.5">Customize Pakistani rates per table</p>
+            <p className="text-xs font-bold text-gray-600 uppercase tracking-widest mt-0.5">Customize Pakistani rates per table • Synced live</p>
           </div>
 
           <div className="card-brutal overflow-x-auto bg-white">
