@@ -207,14 +207,15 @@ class RunSecurityAudit extends Command
         }
 
         // ----------------------------------------------------
-        // TEST 8: Vercel Serverless Configuration Verification
+        // TEST 8: Hostinger Production Config Verification
         // ----------------------------------------------------
         try {
-            $vercelConfigExists = file_exists(base_path('vercel.json'));
-            $apiIndexExists = file_exists(base_path('api/index.php'));
-            $report("Vercel Serverless Config (vercel.json & api/index.php)", $vercelConfigExists && $apiIndexExists);
+            $htaccessExists = file_exists(base_path('.htaccess'));
+            $sqliteExists = file_exists(database_path('database.sqlite'));
+            $publicIndexExists = file_exists(public_path('index.php'));
+            $report("Hostinger Production Config (.htaccess, SQLite, public/index.php)", $htaccessExists && $sqliteExists && $publicIndexExists);
         } catch (\Exception $e) {
-            $report("Vercel Config Verification", false, $e->getMessage());
+            $report("Hostinger Config Verification", false, $e->getMessage());
         }
 
         $this->line("\n------------------------------------------------------------");

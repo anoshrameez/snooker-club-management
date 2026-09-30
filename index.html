@@ -1,0 +1,1224 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="robots" content="noindex, nofollow" />
+  <title>CueMaster — Snooker Club Management & POS Terminal</title>
+  
+  <!-- Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700;900&family=JetBrains+Mono:wght@400;700;900&display=swap" rel="stylesheet">
+  
+  <!-- Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            brand: {
+              yellow: '#FACC15',
+              gold: '#EAB308',
+              dark: '#111827',
+              black: '#000000',
+              felt: '#15803D',
+            }
+          },
+          boxShadow: {
+            'brutal': '4px 4px 0px 0px #000000',
+            'brutal-lg': '6px 6px 0px 0px #000000',
+            'brutal-sm': '2px 2px 0px 0px #000000',
+          }
+        }
+      }
+    }
+  </script>
+
+  <!-- React 18 & Babel Standalone (Fastest Zero-Config Serverless Deployment) -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.5/babel.min.js"></script>
+
+  <style>
+    body {
+      font-family: 'Space Grotesk', system-ui, -apple-system, sans-serif;
+    }
+    .font-mono {
+      font-family: 'JetBrains Mono', monospace;
+    }
+    .border-brutal {
+      border: 3px solid #000000;
+    }
+    .border-brutal-thick {
+      border: 4px solid #000000;
+    }
+    @media print {
+      body * {
+        visibility: hidden !important;
+      }
+      #thermal-receipt-area, #thermal-receipt-area * {
+        visibility: visible !important;
+      }
+      #thermal-receipt-area {
+        position: absolute;
+        left: 0;
+        top: 0;
+        width: 80mm;
+        margin: 0;
+        padding: 8px;
+      }
+    }
+  </style>
+</head>
+<body class="bg-[#F4F4F0] text-black min-h-screen">
+  <div id="root"></div>
+
+  <script type="text/babel">
+    const { useState, useEffect } = React;
+
+    // --- INITIAL SEED DATA ---
+    const INITIAL_TABLES = [
+      { id: 1, name: "Table 1 (Standard)", type: "standard", rate_century: 10, rate_6ball: 130, rate_10ball: 150, rate_oneball: 120, status: "available", session: null },
+      { id: 2, name: "Table 2 (Standard)", type: "standard", rate_century: 10, rate_6ball: 130, rate_10ball: 150, rate_oneball: 120, status: "available", session: null },
+      { id: 3, name: "Table 3 (Standard)", type: "standard", rate_century: 10, rate_6ball: 130, rate_10ball: 150, rate_oneball: 120, status: "available", session: null },
+      { id: 4, name: "Table 4 (Standard)", type: "standard", rate_century: 10, rate_6ball: 130, rate_10ball: 150, rate_oneball: 120, status: "available", session: null },
+      { id: 5, name: "Table 5 (VIP)", type: "vip", rate_century: 12, rate_6ball: 150, rate_10ball: 180, rate_oneball: 140, status: "available", session: null },
+      { id: 6, name: "Table 6 (Tournament VIP)", type: "vip", rate_century: 15, rate_6ball: 160, rate_10ball: 200, rate_oneball: 150, status: "available", session: null },
+    ];
+
+    const INITIAL_USERS = [
+      { id: 1, username: "admin", password: "admin123", role: "admin", name: "Manager Admin", is_active: true },
+      { id: 2, username: "staff", password: "staff123", role: "staff", name: "Counter Staff", is_active: true },
+    ];
+
+    const INITIAL_SETTINGS = {
+      club_name: "CueMaster Snooker Club",
+      tagline: "Point of Sale & Club Management",
+      address: "Gulberg III, Main Boulevard, Lahore, Pakistan",
+      phone: "+92 300 1234567",
+      currency: "Rs.",
+      timezone: "Asia/Karachi",
+      default_century: 10,
+      default_6ball: 130,
+      default_10ball: 150,
+      default_oneball: 120,
+    };
+
+    const INITIAL_CUSTOMERS = [
+      { id: 1, name: "Hamza Malik", phone: "03001234567", notes: "Regular Century player", total_visits: 14, total_spent: 4900 },
+      { id: 2, name: "Ali Raza", phone: "03219876543", notes: "6-ball tournament player", total_visits: 9, total_spent: 3100 },
+      { id: 3, name: "Usman Tariq", phone: "03335554433", notes: "Table 5 VIP regular", total_visits: 18, total_spent: 8500 },
+    ];
+
+    const INITIAL_SESSIONS = [
+      { id: 101, session_code: "SNK-901101", table_id: 1, table_name: "Table 1 (Standard)", customer_name: "Hamza Malik", customer_phone: "03001234567", game_type: "century", rate_applied: 10, rounds: 1, duration_seconds: 3600, total_price: 600, payment_status: "paid", payment_method: "cash", operator: "Counter Staff", start_time: "2026-09-30 15:30:00" },
+      { id: 102, session_code: "SNK-901102", table_id: 2, table_name: "Table 2 (Standard)", customer_name: "Ali Raza", customer_phone: "03219876543", game_type: "6ball", rate_applied: 130, rounds: 3, duration_seconds: 2400, total_price: 390, payment_status: "paid", payment_method: "cash", operator: "Counter Staff", start_time: "2026-09-30 16:45:00" },
+      { id: 103, session_code: "SNK-901103", table_id: 5, table_name: "Table 5 (VIP)", customer_name: "Usman Tariq", customer_phone: "03335554433", game_type: "10ball", rate_applied: 180, rounds: 2, duration_seconds: 3100, total_price: 360, payment_status: "paid", payment_method: "cash", operator: "Manager Admin", start_time: "2026-09-30 17:20:00" },
+    ];
+
+    // Helper functions for persistent storage
+    function getStore(key, fallback) {
+      try {
+        const item = localStorage.getItem(key);
+        return item ? JSON.parse(item) : fallback;
+      } catch (e) {
+        return fallback;
+      }
+    }
+    function setStore(key, val) {
+      try {
+        localStorage.setItem(key, JSON.stringify(val));
+      } catch (e) {}
+    }
+
+    // --- MAIN APP COMPONENT ---
+    function App() {
+      const [tables, setTables] = useState(() => getStore('snk_tables', INITIAL_TABLES));
+      const [users, setUsers] = useState(() => getStore('snk_users', INITIAL_USERS));
+      const [settings, setSettings] = useState(() => getStore('snk_settings', INITIAL_SETTINGS));
+      const [customers, setCustomers] = useState(() => getStore('snk_customers', INITIAL_CUSTOMERS));
+      const [sessions, setSessions] = useState(() => getStore('snk_sessions', INITIAL_SESSIONS));
+      const [currentUser, setCurrentUser] = useState(() => getStore('snk_user', INITIAL_USERS[0]));
+
+      const [activeTab, setActiveTab] = useState('tables');
+      const [checkoutData, setCheckoutData] = useState(null);
+      const [receiptData, setReceiptData] = useState(null);
+      const [showLoginModal, setShowLoginModal] = useState(false);
+
+      // Auto save
+      useEffect(() => { setStore('snk_tables', tables); }, [tables]);
+      useEffect(() => { setStore('snk_sessions', sessions); }, [sessions]);
+      useEffect(() => { setStore('snk_customers', customers); }, [customers]);
+      useEffect(() => { setStore('snk_settings', settings); }, [settings]);
+      useEffect(() => { setStore('snk_users', users); }, [users]);
+      useEffect(() => { setStore('snk_user', currentUser); }, [currentUser]);
+
+      // Clock
+      const [pktTime, setPktTime] = useState('');
+      useEffect(() => {
+        const tick = () => {
+          setPktTime(new Date().toLocaleTimeString('en-US', {
+            timeZone: 'Asia/Karachi',
+            hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: true
+          }));
+        };
+        tick();
+        const timer = setInterval(tick, 1000);
+        return () => clearInterval(timer);
+      }, []);
+
+      // Start match
+      const handleStartMatch = ({ tableId, customerName, customerPhone, gameType, rateApplied, rounds }) => {
+        const sessionCode = `SNK-${Date.now().toString().slice(-6)}`;
+        if (customerName && customerName !== 'Walk-in Player') {
+          const exists = customers.find(c => c.name.toLowerCase() === customerName.toLowerCase());
+          if (exists) {
+            setCustomers(prev => prev.map(c => c.id === exists.id ? { ...c, total_visits: (c.total_visits || 1) + 1 } : c));
+          } else {
+            setCustomers(prev => [{ id: Date.now(), name: customerName, phone: customerPhone, notes: 'Counter check-in', total_visits: 1, total_spent: 0 }, ...prev]);
+          }
+        }
+
+        setTables(prev => prev.map(t => {
+          if (t.id === tableId) {
+            return {
+              ...t,
+              status: 'occupied',
+              session: {
+                session_code: sessionCode,
+                customer_name: customerName,
+                customer_phone: customerPhone,
+                game_type: gameType,
+                rate_applied: rateApplied,
+                rounds: rounds,
+                start_time: new Date().toISOString(),
+                operator: currentUser ? currentUser.name : 'Counter Staff'
+              }
+            };
+          }
+          return t;
+        }));
+      };
+
+      // Update rounds
+      const handleUpdateRounds = (tableId, newRounds) => {
+        setTables(prev => prev.map(t => {
+          if (t.id === tableId && t.session) {
+            return { ...t, session: { ...t.session, rounds: Math.max(1, newRounds) } };
+          }
+          return t;
+        }));
+      };
+
+      // Confirm cash settlement
+      const handleConfirmSettlement = ({ tableId, tableName, customerName, customerPhone, gameType, rateApplied, rounds, durationSeconds, subtotal, discount, totalPrice, notes, shouldPrint }) => {
+        const sessionRecord = {
+          id: Date.now(),
+          session_code: `SNK-${Date.now().toString().slice(-6)}`,
+          table_id: tableId,
+          table_name: tableName,
+          customer_name: customerName,
+          customer_phone: customerPhone,
+          game_type: gameType,
+          rate_applied: rateApplied,
+          rounds: rounds,
+          duration_seconds: durationSeconds,
+          subtotal: subtotal,
+          discount: discount,
+          total_price: totalPrice,
+          payment_status: 'paid',
+          payment_method: 'cash',
+          operator: currentUser ? currentUser.name : 'Counter Staff',
+          notes: notes,
+          start_time: new Date().toLocaleString('en-US', { timeZone: 'Asia/Karachi' })
+        };
+
+        setSessions(prev => [sessionRecord, ...prev]);
+
+        if (customerName) {
+          setCustomers(prev => prev.map(c => c.name.toLowerCase() === customerName.toLowerCase() ? { ...c, total_spent: (c.total_spent || 0) + totalPrice } : c));
+        }
+
+        // Free up table
+        setTables(prev => prev.map(t => t.id === tableId ? { ...t, status: 'available', session: null } : t));
+        setCheckoutData(null);
+
+        if (shouldPrint) {
+          setReceiptData(sessionRecord);
+        }
+      };
+
+      // Stats
+      const activeCount = tables.filter(t => t.status === 'occupied').length;
+      const todayTotalCash = sessions.reduce((sum, s) => sum + (Number(s.total_price) || 0), 0);
+
+      return (
+        <div className="min-h-screen flex flex-col font-sans">
+          
+          {/* HEADER / NAVBAR */}
+          <header className="bg-black text-white border-b-4 border-black sticky top-0 z-40 shadow-brutal">
+            <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+              <div className="flex items-center justify-between h-20">
+                
+                {/* Brand */}
+                <div className="flex items-center gap-3">
+                  <div className="w-12 h-12 bg-brand-yellow text-black font-black text-2xl flex items-center justify-center border-brutal shadow-brutal-sm rotate-[-3deg]">
+                    🎱
+                  </div>
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <span className="text-2xl font-black tracking-tight text-brand-yellow uppercase">
+                        CueMaster
+                      </span>
+                      <span className="bg-white text-black text-xs font-bold px-2 py-0.5 border border-black uppercase tracking-wider">
+                        POS LIVE
+                      </span>
+                    </div>
+                    <p className="text-xs text-zinc-400 font-mono flex items-center gap-2">
+                      <span>PKT (Karachi):</span>
+                      <span className="text-brand-yellow font-bold">{pktTime || 'Loading...'}</span>
+                    </p>
+                  </div>
+                </div>
+
+                {/* Quick Metrics */}
+                <div className="hidden md:flex items-center gap-4">
+                  <div className="bg-zinc-900 border-2 border-zinc-700 px-3 py-1.5 text-xs flex items-center gap-2">
+                    <span className="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-pulse"></span>
+                    <span className="text-zinc-400">Live Tables:</span>
+                    <span className="font-bold text-white font-mono">{activeCount} / {tables.length}</span>
+                  </div>
+                  <div className="bg-zinc-900 border-2 border-zinc-700 px-3 py-1.5 text-xs flex items-center gap-2">
+                    <span className="text-brand-yellow font-bold">💵 Cash Drawer:</span>
+                    <span className="font-bold text-brand-yellow font-mono text-sm">
+                      Rs. {todayTotalCash.toLocaleString()}
+                    </span>
+                  </div>
+                </div>
+
+                {/* User / Sign In */}
+                <div className="flex items-center gap-3">
+                  {currentUser ? (
+                    <div className="flex items-center gap-2">
+                      <div className="text-right hidden sm:block">
+                        <div className="text-xs font-bold text-white uppercase">{currentUser.name}</div>
+                        <span className={`text-[10px] font-bold uppercase px-1.5 py-0.2 border ${currentUser.role === 'admin' ? 'bg-brand-yellow text-black border-black' : 'bg-zinc-800 text-zinc-300 border-zinc-600'}`}>
+                          {currentUser.role}
+                        </span>
+                      </div>
+                      <button
+                        onClick={() => { setCurrentUser(null); localStorage.removeItem('snk_user'); }}
+                        className="bg-red-600 hover:bg-red-500 text-white text-xs font-bold px-3 py-2 border-2 border-white shadow-brutal-sm uppercase"
+                      >
+                        Logout
+                      </button>
+                    </div>
+                  ) : (
+                    <button
+                      onClick={() => setShowLoginModal(true)}
+                      className="bg-brand-yellow hover:bg-yellow-400 text-black text-xs font-black px-4 py-2 border-2 border-black shadow-brutal-sm uppercase"
+                    >
+                      Sign In
+                    </button>
+                  )}
+                </div>
+
+              </div>
+
+              {/* Navigation Tabs */}
+              <div className="flex overflow-x-auto gap-2 pb-3 pt-1 scrollbar-none">
+                <button
+                  onClick={() => setActiveTab('tables')}
+                  className={`px-4 py-2 text-sm font-bold border-2 border-black uppercase flex items-center gap-2 whitespace-nowrap transition-all ${activeTab === 'tables' ? 'bg-brand-yellow text-black shadow-brutal-sm -translate-y-0.5' : 'bg-zinc-800 text-zinc-300 hover:bg-zinc-700'}`}
+                >
+                  🎱 Live Tables
+                  {activeCount > 0 && <span className="bg-red-600 text-white text-[11px] font-bold px-1.5 py-0.2 rounded-full">{activeCount}</span>}
+                </button>
+
+                <button
+                  onClick={() => setActiveTab('customers')}
+                  className={`px-4 py-2 text-sm font-bold border-2 border-black uppercase flex items-center gap-2 whitespace-nowrap transition-all ${activeTab === 'customers' ? 'bg-brand-yellow text-black shadow-brutal-sm -translate-y-0.5' : 'bg-zinc-800 text-zinc-300 hover:bg-zinc-700'}`}
+                >
+                  👥 Players Directory
+                </button>
+
+                <button
+                  onClick={() => setActiveTab('reports')}
+                  className={`px-4 py-2 text-sm font-bold border-2 border-black uppercase flex items-center gap-2 whitespace-nowrap transition-all ${activeTab === 'reports' ? 'bg-brand-yellow text-black shadow-brutal-sm -translate-y-0.5' : 'bg-zinc-800 text-zinc-300 hover:bg-zinc-700'}`}
+                >
+                  📊 Cash Ledger & Reports
+                </button>
+
+                {currentUser && currentUser.role === 'admin' && (
+                  <button
+                    onClick={() => setActiveTab('settings')}
+                    className={`px-4 py-2 text-sm font-bold border-2 border-black uppercase flex items-center gap-2 whitespace-nowrap transition-all ${activeTab === 'settings' ? 'bg-brand-yellow text-black shadow-brutal-sm -translate-y-0.5' : 'bg-zinc-800 text-zinc-300 hover:bg-zinc-700'}`}
+                  >
+                    ⚙️ Rates & Club Settings
+                  </button>
+                )}
+              </div>
+
+            </div>
+          </header>
+
+          {/* MAIN BODY VIEW */}
+          <main className="flex-1 max-w-7xl w-full mx-auto p-4 sm:p-6 lg:p-8">
+            
+            {/* VIEW 1: LIVE TABLES */}
+            {activeTab === 'tables' && (
+              <div className="space-y-6">
+                
+                {/* Notice Banner */}
+                <div className="bg-white border-brutal-thick p-4 shadow-brutal flex flex-col sm:flex-row justify-between items-center gap-3">
+                  <div className="flex items-center gap-3">
+                    <span className="text-3xl">🎱</span>
+                    <div>
+                      <h1 className="text-lg font-black uppercase text-black">
+                        Active Counter & Tables POS
+                      </h1>
+                      <p className="text-xs text-zinc-600 font-bold">
+                        Century: Rs.{settings.default_century}/min | 6 Ball: Rs.{settings.default_6ball} | 10 Ball: Rs.{settings.default_10ball} | One Ball: Rs.{settings.default_oneball}
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center gap-2 text-xs font-black uppercase">
+                    <span className="bg-emerald-500 text-black px-3 py-1 border border-black shadow-brutal-sm">
+                      ● {tables.length - activeCount} Vacant
+                    </span>
+                    <span className="bg-red-600 text-white px-3 py-1 border border-black shadow-brutal-sm animate-pulse">
+                      ● {activeCount} In Play
+                    </span>
+                  </div>
+                </div>
+
+                {/* 6 Tables Grid */}
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                  {tables.map(table => (
+                    <TableItem
+                      key={table.id}
+                      table={table}
+                      onStart={handleStartMatch}
+                      onEnd={(t, elapsed, total) => setCheckoutData({ table: t, elapsedSeconds: elapsed, initialTotal: total })}
+                      onUpdateRounds={handleUpdateRounds}
+                    />
+                  ))}
+                </div>
+
+              </div>
+            )}
+
+            {/* VIEW 2: PLAYERS DIRECTORY */}
+            {activeTab === 'customers' && (
+              <PlayersView
+                customers={customers}
+                onAdd={(c) => setCustomers(prev => [c, ...prev])}
+              />
+            )}
+
+            {/* VIEW 3: CASH REPORTS */}
+            {activeTab === 'reports' && (
+              <LedgerReportsView sessions={sessions} settings={settings} />
+            )}
+
+            {/* VIEW 4: SETTINGS (ADMIN) */}
+            {activeTab === 'settings' && (
+              <SettingsPanel
+                settings={settings}
+                onSave={setSettings}
+                tables={tables}
+                onUpdateTableRate={(id, f, val) => setTables(prev => prev.map(t => t.id === id ? { ...t, [f]: val } : t))}
+                onReset={() => {
+                  localStorage.clear();
+                  setTables(INITIAL_TABLES);
+                  setSettings(INITIAL_SETTINGS);
+                  setCustomers(INITIAL_CUSTOMERS);
+                  setSessions(INITIAL_SESSIONS);
+                  setUsers(INITIAL_USERS);
+                  setCurrentUser(INITIAL_USERS[0]);
+                  alert('Reset to defaults.');
+                }}
+              />
+            )}
+
+          </main>
+
+          {/* FOOTER */}
+          <footer className="bg-black text-zinc-400 border-t-4 border-black py-4 px-6 text-center text-xs font-mono">
+            <p>
+              🎱 <strong>{settings.club_name}</strong> — Counter Terminal & Snooker POS | Standard Pakistan Format: Asia/Karachi (PKT)
+            </p>
+          </footer>
+
+          {/* CHECKOUT MODAL */}
+          {checkoutData && (
+            <CheckoutModalBox
+              data={checkoutData}
+              onClose={() => setCheckoutData(null)}
+              onConfirm={handleConfirmSettlement}
+            />
+          )}
+
+          {/* THERMAL RECEIPT MODAL */}
+          {receiptData && (
+            <ReceiptBox
+              data={receiptData}
+              settings={settings}
+              onClose={() => setReceiptData(null)}
+            />
+          )}
+
+          {/* LOGIN MODAL */}
+          {showLoginModal && (
+            <LoginBox
+              users={users}
+              onLogin={(u) => { setCurrentUser(u); setStore('snk_user', u); setShowLoginModal(false); }}
+              onClose={() => setShowLoginModal(false)}
+            />
+          )}
+
+        </div>
+      );
+    }
+
+    // --- TABLE ITEM COMPONENT ---
+    function TableItem({ table, onStart, onEnd, onUpdateRounds }) {
+      const isOccupied = table.status === 'occupied' && table.session;
+      const [selectedGame, setSelectedGame] = useState('century');
+      const [custName, setCustName] = useState('');
+      const [custPhone, setCustPhone] = useState('');
+      const [rounds, setRounds] = useState(1);
+      const [elapsed, setElapsed] = useState(0);
+
+      useEffect(() => {
+        if (!isOccupied || !table.session.start_time) {
+          setElapsed(0);
+          return;
+        }
+        const calc = () => {
+          const diff = Math.max(0, Math.floor((Date.now() - new Date(table.session.start_time).getTime()) / 1000));
+          setElapsed(diff);
+        };
+        calc();
+        const interval = setInterval(calc, 1000);
+        return () => clearInterval(interval);
+      }, [isOccupied, table.session?.start_time]);
+
+      const formatTimer = (s) => {
+        const hrs = Math.floor(s / 3600);
+        const m = Math.floor((s % 3600) / 60);
+        const sec = s % 60;
+        return `${hrs.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}:${sec.toString().padStart(2, '0')}`;
+      };
+
+      const getRate = (type) => {
+        if (type === 'century') return table.rate_century || 10;
+        if (type === '6ball') return table.rate_6ball || 130;
+        if (type === '10ball') return table.rate_10ball || 150;
+        return table.rate_oneball || 120;
+      };
+
+      const currentTotal = () => {
+        if (!table.session) return 0;
+        const rate = Number(table.session.rate_applied) || 10;
+        if (table.session.game_type === 'century') {
+          return Math.max(1, Math.ceil(elapsed / 60)) * rate;
+        }
+        return (Number(table.session.rounds) || 1) * rate;
+      };
+
+      return (
+        <div className={`border-brutal-thick flex flex-col justify-between shadow-brutal ${isOccupied ? 'bg-zinc-900 text-white' : 'bg-white text-black'}`}>
+          
+          {/* Header */}
+          <div className={`p-4 border-b-4 border-black flex items-center justify-between ${isOccupied ? 'bg-brand-yellow text-black' : 'bg-zinc-100 text-black'}`}>
+            <div>
+              <div className="flex items-center gap-2">
+                <span className="text-xl font-black uppercase">{table.name}</span>
+                <span className="text-[10px] font-black uppercase px-2 py-0.5 border border-black bg-white">{table.type}</span>
+              </div>
+              <div className="text-xs font-mono font-bold mt-0.5">
+                Century: Rs.{table.rate_century}/m | 6B: Rs.{table.rate_6ball} | 10B: Rs.{table.rate_10ball}
+              </div>
+            </div>
+            <div>
+              {isOccupied ? (
+                <span className="px-3 py-1 bg-red-600 text-white text-xs font-black uppercase border-2 border-black animate-pulse shadow-brutal-sm">
+                  LIVE IN PLAY
+                </span>
+              ) : (
+                <span className="px-3 py-1 bg-emerald-500 text-black text-xs font-black uppercase border-2 border-black shadow-brutal-sm">
+                  VACANT
+                </span>
+              )}
+            </div>
+          </div>
+
+          {/* Body */}
+          <div className="p-5 flex-1 flex flex-col justify-between">
+            {isOccupied ? (
+              <div className="space-y-4">
+                
+                {/* Clock */}
+                <div className="bg-black border-2 border-zinc-700 p-4 text-center">
+                  <div className="text-xs uppercase tracking-widest text-zinc-400 font-bold mb-1">Elapsed Match Time</div>
+                  <div className="text-4xl sm:text-5xl font-black font-mono tracking-wider text-brand-yellow">
+                    {formatTimer(elapsed)}
+                  </div>
+                  <div className="mt-3 pt-3 border-t border-zinc-800 flex items-center justify-between">
+                    <span className="text-xs text-zinc-400 font-bold uppercase">Current Cash Due:</span>
+                    <span className="text-2xl font-black font-mono text-emerald-400">Rs. {currentTotal().toLocaleString()}</span>
+                  </div>
+                </div>
+
+                {/* Details */}
+                <div className="bg-zinc-800 border-2 border-zinc-700 p-3 space-y-2 text-xs">
+                  <div className="flex justify-between items-center">
+                    <span className="text-zinc-400 uppercase font-bold">Player:</span>
+                    <span className="font-bold text-white text-sm">{table.session.customer_name || 'Walk-in'}</span>
+                  </div>
+                  <div className="flex justify-between items-center">
+                    <span className="text-zinc-400 uppercase font-bold">Game:</span>
+                    <span className="font-black text-brand-yellow uppercase bg-black px-2 py-0.5 border border-zinc-600">
+                      {table.session.game_type}
+                    </span>
+                  </div>
+
+                  {table.session.game_type !== 'century' ? (
+                    <div className="flex justify-between items-center pt-2 border-t border-zinc-700">
+                      <span className="text-zinc-400 uppercase font-bold">Frames / Rounds:</span>
+                      <div className="flex items-center gap-2">
+                        <button
+                          onClick={() => onUpdateRounds(table.id, (table.session.rounds || 1) - 1)}
+                          className="w-7 h-7 bg-zinc-700 hover:bg-zinc-600 text-white font-black text-sm border border-zinc-500"
+                        >-</button>
+                        <span className="font-black font-mono text-base px-2 text-white">{table.session.rounds || 1}</span>
+                        <button
+                          onClick={() => onUpdateRounds(table.id, (table.session.rounds || 1) + 1)}
+                          className="w-7 h-7 bg-brand-yellow hover:bg-yellow-400 text-black font-black text-sm border border-black"
+                        >+</button>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="flex justify-between items-center pt-1 border-t border-zinc-700">
+                      <span className="text-zinc-400 uppercase font-bold">Billed Time:</span>
+                      <span className="font-mono font-bold text-zinc-200">{Math.max(1, Math.ceil(elapsed / 60))} mins @ Rs.{table.session.rate_applied}/m</span>
+                    </div>
+                  )}
+                </div>
+
+                <button
+                  onClick={() => onEnd(table, elapsed, currentTotal())}
+                  className="w-full bg-red-600 hover:bg-red-500 text-white font-black text-sm uppercase py-3.5 px-4 border-2 border-white shadow-brutal-sm flex items-center justify-center gap-2"
+                >
+                  <span>🏁 End Match & Settle Cash</span>
+                  <span className="font-mono bg-black text-brand-yellow px-2 py-0.5 text-xs">Rs. {currentTotal()}</span>
+                </button>
+
+              </div>
+            ) : (
+              <form onSubmit={(e) => {
+                e.preventDefault();
+                onStart({
+                  tableId: table.id,
+                  customerName: custName.trim() || 'Walk-in Player',
+                  customerPhone: custPhone.trim(),
+                  gameType: selectedGame,
+                  rateApplied: getRate(selectedGame),
+                  rounds: selectedGame === 'century' ? 1 : Number(rounds) || 1
+                });
+                setCustName(''); setCustPhone(''); setRounds(1);
+              }} className="space-y-4">
+                
+                <div>
+                  <label className="block text-xs font-black uppercase mb-1.5">Select Game Mode:</label>
+                  <div className="grid grid-cols-2 gap-2">
+                    {[
+                      { id: 'century', name: 'Century', rate: `Rs.${table.rate_century}/min` },
+                      { id: '6ball', name: '6 Ball', rate: `Rs.${table.rate_6ball}/frame` },
+                      { id: '10ball', name: '10 Ball', rate: `Rs.${table.rate_10ball}/frame` },
+                      { id: 'oneball', name: 'One Ball', rate: `Rs.${table.rate_oneball}/frame` },
+                    ].map(g => (
+                      <button
+                        type="button"
+                        key={g.id}
+                        onClick={() => setSelectedGame(g.id)}
+                        className={`p-2 text-left border-2 border-black ${selectedGame === g.id ? 'bg-brand-yellow text-black font-black shadow-brutal-sm' : 'bg-zinc-50 font-bold'}`}
+                      >
+                        <div className="text-xs uppercase">{g.name}</div>
+                        <div className="text-[10px] font-mono text-zinc-600">{g.rate}</div>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="space-y-2">
+                  <div>
+                    <label className="block text-xs font-black uppercase mb-1">Player Name:</label>
+                    <input
+                      type="text"
+                      placeholder="e.g. Hamza Malik"
+                      value={custName}
+                      onChange={e => setCustName(e.target.value)}
+                      className="w-full bg-zinc-50 border-2 border-black px-3 py-2 text-sm font-bold text-black"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-black uppercase mb-1">Mobile (Optional):</label>
+                    <input
+                      type="tel"
+                      placeholder="0300-1234567"
+                      value={custPhone}
+                      onChange={e => setCustPhone(e.target.value)}
+                      className="w-full bg-zinc-50 border-2 border-black px-3 py-2 text-sm font-mono text-black"
+                    />
+                  </div>
+
+                  {selectedGame !== 'century' && (
+                    <div>
+                      <label className="block text-xs font-black uppercase mb-1">Initial Frames:</label>
+                      <input
+                        type="number" min="1" max="100"
+                        value={rounds}
+                        onChange={e => setRounds(e.target.value)}
+                        className="w-full bg-zinc-50 border-2 border-black px-3 py-2 text-sm font-mono font-bold text-black"
+                      />
+                    </div>
+                  )}
+                </div>
+
+                <button
+                  type="submit"
+                  className="w-full bg-black hover:bg-zinc-800 text-brand-yellow font-black text-sm uppercase py-3 px-4 border-2 border-black shadow-brutal flex items-center justify-center gap-2"
+                >
+                  <span>🎱 Start Session Now</span>
+                  <span className="text-xs bg-brand-yellow text-black px-2 py-0.5 font-bold font-mono">
+                    {selectedGame === 'century' ? `Rs.${getRate(selectedGame)}/m` : `Rs.${getRate(selectedGame)}/f`}
+                  </span>
+                </button>
+
+              </form>
+            )}
+          </div>
+
+        </div>
+      );
+    }
+
+    // --- CHECKOUT MODAL BOX ---
+    function CheckoutModalBox({ data, onClose, onConfirm }) {
+      const { table, elapsedSeconds, initialTotal } = data;
+      const session = table.session;
+      const [discount, setDiscount] = useState(0);
+      const [confirmed, setConfirmed] = useState(false);
+      const [notes, setNotes] = useState('');
+
+      const subtotal = initialTotal || 0;
+      const finalTotal = Math.max(0, subtotal - Number(discount || 0));
+
+      return (
+        <div className="fixed inset-0 z-50 bg-black/80 flex items-center justify-center p-4 backdrop-blur-sm">
+          <div className="bg-white border-brutal-thick w-full max-w-lg shadow-brutal-lg">
+            
+            <div className="bg-brand-yellow p-4 border-b-4 border-black flex items-center justify-between">
+              <div>
+                <h2 className="text-xl font-black uppercase text-black">💵 Cash Settlement & Checkout</h2>
+                <p className="text-xs font-bold text-zinc-800">{table.name} — Step 2 of 2 Confirmation</p>
+              </div>
+              <button onClick={onClose} className="w-8 h-8 bg-black text-white font-bold border-2 border-black">✕</button>
+            </div>
+
+            <div className="p-6 space-y-4 font-sans">
+              
+              <div className="border-2 border-black bg-zinc-50 p-4 space-y-2 font-mono text-sm">
+                <div className="flex justify-between border-b border-zinc-300 pb-1.5 font-sans font-bold">
+                  <span className="text-zinc-600 uppercase text-xs">Customer:</span>
+                  <span>{session.customer_name || 'Walk-in'}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-zinc-600">Game Mode:</span>
+                  <span className="font-bold uppercase">{session.game_type}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-zinc-600">Usage:</span>
+                  <span>{session.game_type === 'century' ? `${Math.ceil(elapsedSeconds / 60)} mins` : `${session.rounds} frames`}</span>
+                </div>
+                <div className="flex justify-between border-t border-zinc-300 pt-1.5">
+                  <span className="text-zinc-600">Subtotal:</span>
+                  <span>Rs. {subtotal.toLocaleString()}</span>
+                </div>
+                <div className="flex justify-between items-center">
+                  <span className="text-zinc-600 text-xs uppercase font-sans font-bold">Discount (Rs.):</span>
+                  <input
+                    type="number" min="0" max={subtotal}
+                    value={discount}
+                    onChange={e => setDiscount(Math.max(0, parseInt(e.target.value) || 0))}
+                    className="w-24 bg-white border-2 border-black px-2 py-1 text-right font-bold text-sm"
+                  />
+                </div>
+                <div className="flex justify-between items-center border-t-2 border-black pt-2 text-lg font-black font-sans">
+                  <span>Grand Total:</span>
+                  <span className="text-2xl text-emerald-600">Rs. {finalTotal.toLocaleString()}</span>
+                </div>
+              </div>
+
+              <div className="bg-yellow-100 border-2 border-brand-yellow p-3 text-xs font-bold text-zinc-900 flex items-center gap-2">
+                <span>💵</span>
+                <span>PAYMENT METHOD: <strong>STRICT CASH ONLY</strong>. Collect physical cash notes.</span>
+              </div>
+
+              <div>
+                <label className="block text-xs font-black uppercase mb-1">Notes (Optional):</label>
+                <input
+                  type="text"
+                  placeholder="e.g. Paid in full"
+                  value={notes}
+                  onChange={e => setNotes(e.target.value)}
+                  className="w-full bg-zinc-50 border-2 border-black px-3 py-2 text-xs font-bold"
+                />
+              </div>
+
+              <div className="bg-red-50 border-2 border-red-500 p-3 flex items-start gap-3">
+                <input
+                  type="checkbox" id="chkCash"
+                  checked={confirmed}
+                  onChange={e => setConfirmed(e.target.checked)}
+                  className="w-5 h-5 mt-0.5 accent-black cursor-pointer"
+                />
+                <label htmlFor="chkCash" className="text-xs font-black uppercase text-red-900 cursor-pointer select-none">
+                  I CONFIRM THAT CASH OF RS. {finalTotal} HAS BEEN PHYSICALLY RECEIVED IN REGISTER. FREE TABLE.
+                </label>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3 pt-2">
+                <button
+                  type="button"
+                  disabled={!confirmed}
+                  onClick={() => onConfirm({
+                    tableId: table.id, tableName: table.name, customerName: session.customer_name, customerPhone: session.customer_phone,
+                    gameType: session.game_type, rateApplied: session.rate_applied, rounds: session.rounds, durationSeconds: elapsedSeconds,
+                    subtotal: subtotal, discount: discount, totalPrice: finalTotal, notes: notes, shouldPrint: false
+                  })}
+                  className={`py-3 px-4 font-black text-xs uppercase border-2 border-black shadow-brutal ${confirmed ? 'bg-black text-white hover:bg-zinc-800' : 'bg-zinc-300 text-zinc-500 cursor-not-allowed border-zinc-400'}`}
+                >
+                  ✅ Settle Cash Only
+                </button>
+
+                <button
+                  type="button"
+                  disabled={!confirmed}
+                  onClick={() => onConfirm({
+                    tableId: table.id, tableName: table.name, customerName: session.customer_name, customerPhone: session.customer_phone,
+                    gameType: session.game_type, rateApplied: session.rate_applied, rounds: session.rounds, durationSeconds: elapsedSeconds,
+                    subtotal: subtotal, discount: discount, totalPrice: finalTotal, notes: notes, shouldPrint: true
+                  })}
+                  className={`py-3 px-4 font-black text-xs uppercase border-2 border-black shadow-brutal flex items-center justify-center gap-1 ${confirmed ? 'bg-brand-yellow text-black hover:bg-yellow-400' : 'bg-zinc-300 text-zinc-500 cursor-not-allowed border-zinc-400'}`}
+                >
+                  🖨️ Settle & Print Slip
+                </button>
+              </div>
+
+              <button onClick={onClose} className="w-full text-center text-xs font-bold text-zinc-500 hover:text-black uppercase underline">
+                ← Cancel & Return to Match
+              </button>
+
+            </div>
+          </div>
+        </div>
+      );
+    }
+
+    // --- THERMAL RECEIPT BOX ---
+    function ReceiptBox({ data, settings, onClose }) {
+      const now = new Date().toLocaleString('en-US', { timeZone: 'Asia/Karachi', dateStyle: 'medium', timeStyle: 'short' });
+
+      return (
+        <div className="fixed inset-0 z-50 bg-black/80 flex items-center justify-center p-4 backdrop-blur-sm">
+          <div className="bg-white border-brutal-thick w-full max-w-sm shadow-brutal-lg p-6">
+            
+            <div id="thermal-receipt-area" className="bg-white text-black font-mono text-xs p-4 border border-zinc-300">
+              <div className="text-center space-y-1 pb-3 border-b-2 border-dashed border-black">
+                <div className="text-base font-black uppercase tracking-wider">{settings.club_name}</div>
+                <div className="text-[11px] text-zinc-600">{settings.address}</div>
+                <div className="text-[11px] text-zinc-600">Tel: {settings.phone}</div>
+                <div className="text-[11px] font-bold mt-1 text-black">*** OFFICIAL CASH RECEIPT ***</div>
+              </div>
+
+              <div className="py-2 border-b border-dashed border-black space-y-1 text-[11px]">
+                <div className="flex justify-between"><span>Receipt #:</span><span className="font-bold">{data.session_code}</span></div>
+                <div className="flex justify-between"><span>Date/Time:</span><span>{now} (PKT)</span></div>
+                <div className="flex justify-between"><span>Table:</span><span className="font-bold">{data.table_name}</span></div>
+                <div className="flex justify-between"><span>Customer:</span><span className="font-bold">{data.customer_name || 'Walk-in'}</span></div>
+                <div className="flex justify-between"><span>Operator:</span><span>{data.operator}</span></div>
+              </div>
+
+              <div className="py-2 border-b-2 border-dashed border-black space-y-1 text-[11px]">
+                <div className="flex justify-between"><span>Game:</span><span className="font-bold uppercase">{data.game_type}</span></div>
+                {data.game_type === 'century' ? (
+                  <div className="flex justify-between"><span>Duration:</span><span>{Math.ceil(data.duration_seconds / 60)} Mins @ Rs.{data.rate_applied}/m</span></div>
+                ) : (
+                  <div className="flex justify-between"><span>Frames:</span><span>{data.rounds} Frames @ Rs.{data.rate_applied}</span></div>
+                )}
+                {data.discount > 0 && <div className="flex justify-between text-red-600"><span>Discount:</span><span>- Rs. {data.discount}</span></div>}
+                
+                <div className="flex justify-between text-sm font-black pt-2 border-t border-black">
+                  <span>TOTAL CASH PAID:</span>
+                  <span>Rs. {Number(data.total_price).toLocaleString()}</span>
+                </div>
+                <div className="text-[10px] text-zinc-500 uppercase text-center mt-1">[ STATUS: PAID (CASH ONLY) ]</div>
+              </div>
+
+              <div className="text-center pt-3 text-[10px]">
+                <p className="font-bold">Thank you for playing with us!</p>
+              </div>
+            </div>
+
+            <div className="mt-4 space-y-2 print:hidden">
+              <button
+                onClick={() => window.print()}
+                className="w-full bg-brand-yellow hover:bg-yellow-400 text-black font-black text-sm uppercase py-3 border-2 border-black shadow-brutal"
+              >
+                🖨️ Print Thermal Slip
+              </button>
+              <button onClick={onClose} className="w-full bg-black text-white font-bold text-xs uppercase py-2 border-2 border-black">
+                Close Dialog
+              </button>
+            </div>
+
+          </div>
+        </div>
+      );
+    }
+
+    // --- PLAYERS VIEW ---
+    function PlayersView({ customers, onAdd }) {
+      const [search, setSearch] = useState('');
+      const [showAdd, setShowAdd] = useState(false);
+      const [name, setName] = useState('');
+      const [phone, setPhone] = useState('');
+      const [notes, setNotes] = useState('');
+
+      const filtered = customers.filter(c => c.name.toLowerCase().includes(search.toLowerCase()) || c.phone.includes(search));
+
+      return (
+        <div className="space-y-6">
+          <div className="bg-white border-brutal-thick p-5 shadow-brutal flex flex-col sm:flex-row justify-between items-center gap-4">
+            <div>
+              <h1 className="text-2xl font-black uppercase text-black">👥 Players & Customers Directory</h1>
+              <p className="text-xs text-zinc-600 font-bold">Total Players: {customers.length}</p>
+            </div>
+            <div className="flex gap-2 w-full sm:w-auto">
+              <input
+                type="text" placeholder="🔍 Search name or mobile..."
+                value={search} onChange={e => setSearch(e.target.value)}
+                className="bg-zinc-50 border-2 border-black px-3 py-2 text-sm font-bold w-full sm:w-64"
+              />
+              <button
+                onClick={() => setShowAdd(!showAdd)}
+                className="bg-brand-yellow text-black font-black text-xs uppercase px-4 py-2 border-2 border-black shadow-brutal-sm whitespace-nowrap"
+              >
+                {showAdd ? '✕ Close' : '+ Add Player'}
+              </button>
+            </div>
+          </div>
+
+          {showAdd && (
+            <form onSubmit={e => {
+              e.preventDefault();
+              if (!name.trim()) return;
+              onAdd({ id: Date.now(), name: name.trim(), phone: phone.trim(), notes: notes.trim(), total_visits: 1, total_spent: 0 });
+              setName(''); setPhone(''); setNotes(''); setShowAdd(false);
+            }} className="bg-zinc-100 border-brutal-thick p-5 shadow-brutal space-y-4">
+              <h2 className="text-sm font-black uppercase">Register New Player</h2>
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                <input required type="text" placeholder="Full Name *" value={name} onChange={e => setName(e.target.value)} className="bg-white border-2 border-black px-3 py-2 text-sm font-bold" />
+                <input type="tel" placeholder="Mobile 0300-1234567" value={phone} onChange={e => setPhone(e.target.value)} className="bg-white border-2 border-black px-3 py-2 text-sm font-mono" />
+                <input type="text" placeholder="Notes (e.g. Regular)" value={notes} onChange={e => setNotes(e.target.value)} className="bg-white border-2 border-black px-3 py-2 text-sm" />
+              </div>
+              <button type="submit" className="bg-black text-brand-yellow font-black text-xs uppercase px-6 py-2 border-2 border-black">Save Player</button>
+            </form>
+          )}
+
+          <div className="bg-white border-brutal-thick shadow-brutal overflow-x-auto">
+            <table className="w-full text-left border-collapse">
+              <thead>
+                <tr className="bg-black text-brand-yellow text-xs font-black uppercase border-b-2 border-black">
+                  <th className="p-3.5">ID</th>
+                  <th className="p-3.5">Player Name</th>
+                  <th className="p-3.5">Mobile Phone</th>
+                  <th className="p-3.5">Visits</th>
+                  <th className="p-3.5">Total Spent</th>
+                  <th className="p-3.5">Notes</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y-2 divide-zinc-200 text-sm font-bold">
+                {filtered.map(c => (
+                  <tr key={c.id} className="hover:bg-yellow-50">
+                    <td className="p-3.5 font-mono text-zinc-500">#{c.id}</td>
+                    <td className="p-3.5 font-black">{c.name}</td>
+                    <td className="p-3.5 font-mono">{c.phone || '—'}</td>
+                    <td className="p-3.5"><span className="bg-zinc-100 border border-black px-2 py-0.5 font-mono text-xs">{c.total_visits || 0} visits</span></td>
+                    <td className="p-3.5 font-mono font-black text-emerald-600">Rs. {(c.total_spent || 0).toLocaleString()}</td>
+                    <td className="p-3.5 text-xs text-zinc-600 font-normal">{c.notes || '—'}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      );
+    }
+
+    // --- REPORTS VIEW ---
+    function LedgerReportsView({ sessions, settings }) {
+      const [filter, setFilter] = useState('all');
+      const filtered = sessions.filter(s => filter === 'all' || s.game_type === filter);
+      const totalCash = filtered.reduce((sum, s) => sum + (Number(s.total_price) || 0), 0);
+      const centuryMins = filtered.filter(s => s.game_type === 'century').reduce((sum, s) => sum + Math.ceil((Number(s.duration_seconds) || 0) / 60), 0);
+      const framesCount = filtered.filter(s => s.game_type !== 'century').reduce((sum, s) => sum + (Number(s.rounds) || 0), 0);
+
+      const downloadCSV = () => {
+        const rows = [['Code', 'Table', 'Customer', 'Game', 'Amount (Rs)', 'Date']];
+        filtered.forEach(s => rows.push([s.session_code, s.table_name, s.customer_name || 'Walk-in', s.game_type, s.total_price, s.start_time]));
+        const csv = 'data:text/csv;charset=utf-8,' + rows.map(e => e.join(',')).join('\n');
+        const a = document.createElement('a');
+        a.href = encodeURI(csv);
+        a.download = `snooker_report_${Date.now()}.csv`;
+        a.click();
+      };
+
+      return (
+        <div className="space-y-6">
+          <div className="bg-white border-brutal-thick p-5 shadow-brutal flex flex-col sm:flex-row justify-between items-center gap-4">
+            <div>
+              <h1 className="text-2xl font-black uppercase text-black">📊 Financial Reports & Shift Ledger</h1>
+              <p className="text-xs text-zinc-600 font-bold">Strict Cash Register Accounting</p>
+            </div>
+            <div className="flex gap-3">
+              <select value={filter} onChange={e => setFilter(e.target.value)} className="bg-zinc-50 border-2 border-black px-3 py-2 text-xs font-bold uppercase">
+                <option value="all">All Game Modes</option>
+                <option value="century">Century</option>
+                <option value="6ball">6 Ball</option>
+                <option value="10ball">10 Ball</option>
+                <option value="oneball">One Ball</option>
+              </select>
+              <button onClick={downloadCSV} className="bg-brand-yellow text-black font-black text-xs uppercase px-4 py-2 border-2 border-black shadow-brutal-sm">
+                📥 Export CSV
+              </button>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+            <div className="bg-brand-yellow border-brutal-thick p-4 shadow-brutal">
+              <div className="text-xs uppercase font-black">Total Cash Collected</div>
+              <div className="text-3xl font-black font-mono mt-1">Rs. {totalCash.toLocaleString()}</div>
+              <div className="text-[10px] font-bold mt-1 uppercase">[ Safe Register Total ]</div>
+            </div>
+            <div className="bg-white border-brutal-thick p-4 shadow-brutal">
+              <div className="text-xs uppercase font-black text-zinc-600">Total Matches</div>
+              <div className="text-3xl font-black font-mono mt-1">{filtered.length}</div>
+              <div className="text-[10px] font-bold text-zinc-500 mt-1 uppercase">Settled Matches</div>
+            </div>
+            <div className="bg-white border-brutal-thick p-4 shadow-brutal">
+              <div className="text-xs uppercase font-black text-zinc-600">Century Minutes</div>
+              <div className="text-3xl font-black font-mono mt-1">{centuryMins} mins</div>
+              <div className="text-[10px] font-bold text-zinc-500 mt-1 uppercase">Time Billed</div>
+            </div>
+            <div className="bg-white border-brutal-thick p-4 shadow-brutal">
+              <div className="text-xs uppercase font-black text-zinc-600">Frames Played</div>
+              <div className="text-3xl font-black font-mono mt-1">{framesCount} frames</div>
+              <div className="text-[10px] font-bold text-zinc-500 mt-1 uppercase">6B / 10B / 1B</div>
+            </div>
+          </div>
+
+          <div className="bg-white border-brutal-thick shadow-brutal overflow-x-auto">
+            <table className="w-full text-left border-collapse">
+              <thead>
+                <tr className="bg-zinc-100 text-xs font-black uppercase border-b-2 border-black">
+                  <th className="p-3">Session Code</th>
+                  <th className="p-3">Table</th>
+                  <th className="p-3">Player</th>
+                  <th className="p-3">Game</th>
+                  <th className="p-3">Amount (Rs.)</th>
+                  <th className="p-3">Status</th>
+                  <th className="p-3">Operator</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y-2 divide-zinc-200 text-xs font-bold">
+                {filtered.map(s => (
+                  <tr key={s.id} className="hover:bg-yellow-50">
+                    <td className="p-3 font-mono text-zinc-500">{s.session_code}</td>
+                    <td className="p-3 font-black">{s.table_name}</td>
+                    <td className="p-3">{s.customer_name || 'Walk-in'}</td>
+                    <td className="p-3"><span className="bg-black text-brand-yellow px-2 py-0.5 uppercase">{s.game_type}</span></td>
+                    <td className="p-3 font-mono font-black text-sm text-emerald-600">Rs. {Number(s.total_price).toLocaleString()}</td>
+                    <td className="p-3"><span className="bg-emerald-100 text-emerald-800 border border-emerald-500 px-2 py-0.5 text-[10px] font-black uppercase">PAID (CASH)</span></td>
+                    <td className="p-3 text-zinc-600">{s.operator || 'Staff'}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      );
+    }
+
+    // --- SETTINGS VIEW ---
+    function SettingsPanel({ settings, onSave, tables, onUpdateTableRate, onReset }) {
+      const [form, setForm] = useState({ ...settings });
+      return (
+        <div className="space-y-6">
+          <div className="bg-white border-brutal-thick p-5 shadow-brutal">
+            <h1 className="text-2xl font-black uppercase text-black">⚙️ Club Settings & Rate Customization</h1>
+            <p className="text-xs text-zinc-600 font-bold">Configure rates per table and club branding</p>
+          </div>
+
+          <form onSubmit={e => { e.preventDefault(); onSave(form); alert('Settings saved successfully!'); }} className="space-y-6">
+            <div className="bg-white border-brutal-thick p-6 shadow-brutal space-y-4">
+              <h2 className="text-base font-black uppercase border-b-2 border-black pb-2">🏢 Club Details</h2>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-xs font-bold uppercase mb-1">Club Name</label>
+                  <input type="text" value={form.club_name} onChange={e => setForm({ ...form, club_name: e.target.value })} className="w-full bg-zinc-50 border-2 border-black px-3 py-2 text-sm font-bold" />
+                </div>
+                <div>
+                  <label className="block text-xs font-bold uppercase mb-1">Phone</label>
+                  <input type="text" value={form.phone} onChange={e => setForm({ ...form, phone: e.target.value })} className="w-full bg-zinc-50 border-2 border-black px-3 py-2 text-sm font-mono" />
+                </div>
+                <div className="sm:col-span-2">
+                  <label className="block text-xs font-bold uppercase mb-1">Address</label>
+                  <input type="text" value={form.address} onChange={e => setForm({ ...form, address: e.target.value })} className="w-full bg-zinc-50 border-2 border-black px-3 py-2 text-sm" />
+                </div>
+              </div>
+            </div>
+
+            <div className="bg-white border-brutal-thick p-6 shadow-brutal space-y-4">
+              <h2 className="text-base font-black uppercase border-b-2 border-black pb-2">🎯 Global Default Rates (Rs.)</h2>
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+                <div>
+                  <label className="block text-xs font-bold uppercase mb-1">Century (Rs/min)</label>
+                  <input type="number" min="1" value={form.default_century} onChange={e => setForm({ ...form, default_century: Number(e.target.value) })} className="w-full bg-zinc-50 border-2 border-black px-3 py-2 text-sm font-mono font-bold" />
+                </div>
+                <div>
+                  <label className="block text-xs font-bold uppercase mb-1">6 Ball (Rs/frame)</label>
+                  <input type="number" min="1" value={form.default_6ball} onChange={e => setForm({ ...form, default_6ball: Number(e.target.value) })} className="w-full bg-zinc-50 border-2 border-black px-3 py-2 text-sm font-mono font-bold" />
+                </div>
+                <div>
+                  <label className="block text-xs font-bold uppercase mb-1">10 Ball (Rs/frame)</label>
+                  <input type="number" min="1" value={form.default_10ball} onChange={e => setForm({ ...form, default_10ball: Number(e.target.value) })} className="w-full bg-zinc-50 border-2 border-black px-3 py-2 text-sm font-mono font-bold" />
+                </div>
+                <div>
+                  <label className="block text-xs font-bold uppercase mb-1">One Ball (Rs/frame)</label>
+                  <input type="number" min="1" value={form.default_oneball} onChange={e => setForm({ ...form, default_oneball: Number(e.target.value) })} className="w-full bg-zinc-50 border-2 border-black px-3 py-2 text-sm font-mono font-bold" />
+                </div>
+              </div>
+              <button type="submit" className="bg-black text-brand-yellow font-black text-xs uppercase px-6 py-3 border-2 border-black shadow-brutal-sm">Save Global Rates</button>
+            </div>
+          </form>
+
+          {/* Individual Tables Pricing */}
+          <div className="bg-white border-brutal-thick p-6 shadow-brutal space-y-4">
+            <h2 className="text-base font-black uppercase border-b-2 border-black pb-2">🎱 Per-Table Pricing Customization</h2>
+            <div className="overflow-x-auto">
+              <table className="w-full text-left border-collapse text-xs">
+                <thead>
+                  <tr className="bg-zinc-100 font-black uppercase border-b-2 border-black">
+                    <th className="p-3">Table</th>
+                    <th className="p-3">Century (Rs/m)</th>
+                    <th className="p-3">6 Ball (Rs)</th>
+                    <th className="p-3">10 Ball (Rs)</th>
+                    <th className="p-3">One Ball (Rs)</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-zinc-300 font-bold">
+                  {tables.map(t => (
+                    <tr key={t.id}>
+                      <td className="p-3 font-black text-black">{t.name}</td>
+                      <td className="p-3"><input type="number" value={t.rate_century} onChange={e => onUpdateTableRate(t.id, 'rate_century', Number(e.target.value))} className="w-20 bg-zinc-50 border border-black px-2 py-1 font-mono font-bold" /></td>
+                      <td className="p-3"><input type="number" value={t.rate_6ball} onChange={e => onUpdateTableRate(t.id, 'rate_6ball', Number(e.target.value))} className="w-20 bg-zinc-50 border border-black px-2 py-1 font-mono font-bold" /></td>
+                      <td className="p-3"><input type="number" value={t.rate_10ball} onChange={e => onUpdateTableRate(t.id, 'rate_10ball', Number(e.target.value))} className="w-20 bg-zinc-50 border border-black px-2 py-1 font-mono font-bold" /></td>
+                      <td className="p-3"><input type="number" value={t.rate_oneball} onChange={e => onUpdateTableRate(t.id, 'rate_oneball', Number(e.target.value))} className="w-20 bg-zinc-50 border border-black px-2 py-1 font-mono font-bold" /></td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          <div className="bg-red-50 border-2 border-red-500 p-5 shadow-brutal flex justify-between items-center">
+            <div>
+              <h3 className="text-sm font-black uppercase text-red-900">⚠️ Factory Reset</h3>
+              <p className="text-xs text-red-700">Restore initial tables, rates and test accounts.</p>
+            </div>
+            <button onClick={() => { if (confirm('Reset all records to factory defaults?')) onReset(); }} className="bg-red-600 text-white font-black text-xs uppercase px-4 py-2.5 border-2 border-black">Reset Database</button>
+          </div>
+        </div>
+      );
+    }
+
+    // --- LOGIN BOX ---
+    function LoginBox({ users, onLogin, onClose }) {
+      const [u, setU] = useState('');
+      const [p, setP] = useState('');
+      const [err, setErr] = useState('');
+
+      const handleAuth = (uname, pass) => {
+        const found = users.find(x => x.username.toLowerCase() === uname.trim().toLowerCase() && x.password === pass);
+        if (found) {
+          onLogin(found);
+        } else {
+          setErr('Invalid username or password.');
+        }
+      };
+
+      return (
+        <div className="fixed inset-0 z-50 bg-black/80 flex items-center justify-center p-4 backdrop-blur-sm">
+          <div className="bg-white border-brutal-thick w-full max-w-md shadow-brutal-lg p-6 space-y-4 font-sans">
+            <div className="flex justify-between items-center border-b-2 border-black pb-3">
+              <h2 className="text-xl font-black uppercase">🔐 Counter Staff & Admin Sign In</h2>
+              <button onClick={onClose} className="w-7 h-7 bg-black text-white font-bold">✕</button>
+            </div>
+
+            {err && <div className="bg-red-100 border border-red-500 p-2 text-xs font-bold text-red-900">{err}</div>}
+
+            <form onSubmit={e => { e.preventDefault(); handleAuth(u, p); }} className="space-y-3">
+              <div>
+                <label className="block text-xs font-black uppercase mb-1">Username</label>
+                <input required type="text" placeholder="admin or staff" value={u} onChange={e => setU(e.target.value)} className="w-full bg-zinc-50 border-2 border-black px-3 py-2 text-sm font-bold" />
+              </div>
+              <div>
+                <label className="block text-xs font-black uppercase mb-1">Password</label>
+                <input required type="password" placeholder="••••••••" value={p} onChange={e => setP(e.target.value)} className="w-full bg-zinc-50 border-2 border-black px-3 py-2 text-sm font-bold" />
+              </div>
+              <button type="submit" className="w-full bg-black text-brand-yellow font-black text-sm uppercase py-3 border-2 border-black shadow-brutal">
+                Log In to Counter
+              </button>
+            </form>
+
+            <div className="pt-2 border-t-2 border-dashed border-zinc-300 text-center space-y-2">
+              <div className="text-[11px] font-black uppercase text-zinc-500">— Quick 1-Click Sign In —</div>
+              <div className="grid grid-cols-2 gap-2">
+                <button onClick={() => handleAuth('admin', 'admin123')} className="bg-brand-yellow text-black font-black text-xs uppercase p-2 border-2 border-black shadow-brutal-sm">
+                  👑 Admin Login
+                  <div className="text-[10px] font-mono font-normal">admin / admin123</div>
+                </button>
+                <button onClick={() => handleAuth('staff', 'staff123')} className="bg-zinc-100 text-black font-black text-xs uppercase p-2 border-2 border-black shadow-brutal-sm">
+                  🎱 Staff Login
+                  <div className="text-[10px] font-mono font-normal">staff / staff123</div>
+                </button>
+              </div>
+            </div>
+
+          </div>
+        </div>
+      );
+    }
+
+    // Render App
+    ReactDOM.createRoot(document.getElementById('root')).render(<App />);
+  </script>
+</body>
+</html>
